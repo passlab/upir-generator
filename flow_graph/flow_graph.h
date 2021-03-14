@@ -1,6 +1,7 @@
 #include <vector>
 #include <string>
 
+// TODO: add REX SgNode enums to indicates type and label
 enum NodeType {
 
     GenericNodeType = 0,
@@ -9,11 +10,14 @@ enum NodeType {
 
 };
 
+// TODO: use REX SgNode and APIs to implement Node class,
+// such as SgOmpFlowGraphBaseNode, SgOmpFlowGraphSerialNode, and SgOmpFlowGraphTaskNode
 class Node {
 
     protected:
         std::vector<Node* > parents;
         std::vector<Node* > children;
+        // TODO: use REX SgNode enums instead
         NodeType type = GenericNodeType;
         std::string label = "";
 
