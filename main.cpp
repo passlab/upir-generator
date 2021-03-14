@@ -1,6 +1,7 @@
 #include <iostream>
 #include "rose.h"
 #include "flow_graph.h"
+extern void visualize(Node*);
 
 using namespace SageBuilder;
 using namespace SageInterface;
@@ -19,6 +20,9 @@ int main (int argc, char *argv[]) {
 
     // generate a dummy task graph
     Node* root = generate_dummy_graph();
+
+    // visualize the graph to a DOT file
+    visualize(root);
 
     return 0;
 }
