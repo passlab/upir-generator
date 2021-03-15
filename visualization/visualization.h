@@ -1,6 +1,6 @@
 #include "flow_graph.h"
 
-void visualize(Node*);
+void dummy_visualize(Node*);
 
 void draw_base_node(Node*);
 
