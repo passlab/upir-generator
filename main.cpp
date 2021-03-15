@@ -1,7 +1,7 @@
 #include <iostream>
 #include "rose.h"
-#include "flow_graph.h"
-extern void visualize(Node*);
+extern SgOmpFlowGraphNode* generate_graph(SgProject*);
+extern void visualize(SgOmpFlowGraphNode*);
 
 using namespace SageBuilder;
 using namespace SageInterface;
@@ -10,19 +10,21 @@ int main (int argc, char *argv[]) {
 
     // generate the REX AST
     SgProject* project = frontend(argc, argv);
-    SgGlobal* global = getFirstGlobalScope(project);
 
-    SgFunctionDeclaration* main_func= findMain(project);
-    SgBasicBlock* body= main_func->get_definition()->get_body();
-  
-    AstTests::runAllTests(project);
-    project->unparse();
+    // generate the task graph
+    SgOmpFlowGraphNode* root = generate_graph(project);
 
-    // generate a dummy task graph
-    Node* root = generate_dummy_graph();
+    std::list<SgNode* > children = root->get_children();
+
+    printf("Check the task graph....\n");
+    while (children.size()) {
+        SgNode* node = ((SgOmpFlowGraphNode*)children.front())->get_node();
+        std::cout << "SgNode: " << node->sage_class_name() << " at line: " << node->get_startOfConstruct()->get_line() << "\n";
+        children = ((SgOmpFlowGraphNode*)children.front())->get_children();
+    };
 
     // visualize the graph to a DOT file
-    visualize(root);
+    //visualize(root);
 
     return 0;
 }

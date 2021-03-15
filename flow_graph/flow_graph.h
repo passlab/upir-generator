@@ -1,5 +1,23 @@
 #include <vector>
 #include <string>
+#include "rose.h"
+
+class OmpFlowGraph : public AstSimpleProcessing {
+
+    protected:
+        SgOmpFlowGraphNode* root = NULL;
+        SgOmpFlowGraphNode* cursor = NULL;
+        std::vector<SgOmpFlowGraphNode* > task_nodes;
+        bool has_serial_node_candidate = false;
+
+    public:
+        OmpFlowGraph();
+        virtual void visit(SgNode* node);
+        SgOmpFlowGraphNode* get_root() { return root; };
+        std::vector<SgOmpFlowGraphNode* >* get_nodes() { return &task_nodes; };
+        void add_task_node(SgOmpFlowGraphNode* __node) { task_nodes.push_back(__node); };
+
+};
 
 // TODO: add REX SgNode enums to indicates type and label
 enum NodeType {
@@ -66,5 +84,5 @@ class TaskNode : public SerialNode {
 
 };
 
-Node* generate_graph();
+SgOmpFlowGraphNode* generate_graph(SgProject*);
 Node* generate_dummy_graph();

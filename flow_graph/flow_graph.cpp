@@ -1,6 +1,94 @@
 #include <iostream>
 #include "flow_graph.h"
 
+OmpFlowGraph::OmpFlowGraph() {
+
+};
+
+void OmpFlowGraph::visit(SgNode* node) {
+
+    if (isSgStatement(node)) {
+        std::cout << "SgNode: " << node->sage_class_name() << " at line: " << node->get_startOfConstruct()->get_line() << "\n";
+    }
+    else {
+    //    std::cout << "SgNode: " << node->sage_class_name() << " has no line number.\n";
+    };
+    switch (node->variantT()) {
+        case V_SgFunctionDefinition:
+            {
+                std::cout << "Add a function definition.\n";
+                root = new SgOmpFlowGraphSerialNode("", node);
+                cursor = root;
+                add_task_node(root);
+                break;
+            }
+        case V_SgVariableDeclaration:
+        case V_SgExprStatement:
+            {
+                SgNode* parent = node->get_parent();
+                if (!isSgForStatement(node) && !has_serial_node_candidate) {
+                    SgOmpFlowGraphSerialNode* graph_node = new SgOmpFlowGraphSerialNode("", node);
+                    add_task_node(graph_node);
+                    std::list<SgNode* > parents;
+                    parents.push_back(cursor);
+                    std::list<SgNode* > children;
+                    children.push_back(graph_node);
+                    graph_node->set_parents(parents);
+                    cursor->set_children(children);
+                    cursor = graph_node;
+                    std::cout << "Add a variable declaration or expression statement.\n";
+                    has_serial_node_candidate = true;
+                };
+                break;
+            }
+        case V_SgPragmaDeclaration:
+            {
+                std::cout << "Add a #pragma.\n";
+                SgOmpFlowGraphTaskNode* graph_node = new SgOmpFlowGraphTaskNode("", node);
+                has_serial_node_candidate = false;
+                add_task_node(graph_node);
+                std::list<SgNode* > parents;
+                parents.push_back(cursor);
+                std::list<SgNode* > children;
+                children.push_back(graph_node);
+                graph_node->set_parents(parents);
+                cursor->set_children(children);
+                cursor = graph_node;
+                break;
+            }
+        case V_SgForStatement:
+            {
+                std::cout << "Add a for loop statement.\n";
+                SgOmpFlowGraphSerialNode* graph_node = new SgOmpFlowGraphSerialNode("", node);
+                has_serial_node_candidate = false;
+                add_task_node(graph_node);
+                std::list<SgNode* > parents;
+                parents.push_back(cursor);
+                std::list<SgNode* > children;
+                children.push_back(graph_node);
+                graph_node->set_parents(parents);
+                cursor->set_children(children);
+                cursor = graph_node;
+                break;
+            }
+        default:
+            {
+
+            }
+    };
+
+};
+
+SgOmpFlowGraphNode* generate_graph(SgProject* project) {
+
+    ROSE_ASSERT(project != NULL);
+
+    OmpFlowGraph task_graph;
+    task_graph.traverseInputFiles(project, preorder);
+
+    return task_graph.get_root();
+};
+
 Node* generate_dummy_graph () {
 
     // start of program
