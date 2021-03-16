@@ -1,11 +1,7 @@
 #include <iostream>
 #include "flow_graph.h"
 
-OmpFlowGraph::OmpFlowGraph() {
-
-};
-
-void OmpFlowGraph::visit(SgNode* node) {
+InheritedAttribute OmpFlowGraph::evaluateInheritedAttribute(SgNode* node, InheritedAttribute attribute) {
 
     if (isSgStatement(node)) {
         std::cout << "SgNode: " << node->sage_class_name() << " at line: " << node->get_startOfConstruct()->get_line() << "\n";
@@ -18,62 +14,89 @@ void OmpFlowGraph::visit(SgNode* node) {
             {
                 std::cout << "Add a function definition.\n";
                 root = new SgOmpFlowGraphSerialNode("", node);
-                cursor = root;
-                add_task_node(root);
-                break;
+
+                return InheritedAttribute(root, true, attribute.depth+1, node);
             }
         case V_SgVariableDeclaration:
         case V_SgExprStatement:
             {
-                SgNode* parent = node->get_parent();
-                if (!isSgForStatement(node) && !has_serial_node_candidate) {
-                    SgOmpFlowGraphSerialNode* graph_node = new SgOmpFlowGraphSerialNode("", node);
-                    add_task_node(graph_node);
-                    std::list<SgNode* > parents;
-                    parents.push_back(cursor);
-                    std::list<SgNode* > children;
-                    children.push_back(graph_node);
-                    graph_node->set_parents(parents);
-                    cursor->set_children(children);
-                    cursor = graph_node;
-                    std::cout << "Add a variable declaration or expression statement.\n";
-                    has_serial_node_candidate = true;
+                // reset the serial flag if the last explored expr statement and the current one have different parents
+                if (cursor != attribute.expr_parent) {
+                    has_serial_node_candidate = false;
                 };
-                break;
+                // omit the current node and its sub-tree if it doesn't need to be explored
+                SgNode* parent = node->get_parent();
+                if (attribute.frontier == NULL || has_serial_node_candidate || isSgForStatement(parent)) {
+                    return InheritedAttribute(NULL, false, attribute.depth+1, node);
+                };
+
+                SgOmpFlowGraphSerialNode* graph_node = new SgOmpFlowGraphSerialNode("", node);
+                has_serial_node_candidate = true;
+
+                std::list<SgNode* > children = attribute.frontier->get_children();
+                children.push_back(graph_node);
+                attribute.frontier->set_children(children);
+
+                std::list<SgNode* > parents;
+                parents.push_back(attribute.frontier);
+                graph_node->set_parents(parents);
+                std::cout << "Add a variable declaration or expression statement.\n";
+
+                set_previous_depth(attribute.depth+1);
+                cursor = attribute.expr_parent;
+                return InheritedAttribute(NULL, false, attribute.depth+1, node);
             }
         case V_SgPragmaDeclaration:
             {
                 std::cout << "Add a #pragma.\n";
+
                 SgOmpFlowGraphTaskNode* graph_node = new SgOmpFlowGraphTaskNode("", node);
                 has_serial_node_candidate = false;
-                add_task_node(graph_node);
-                std::list<SgNode* > parents;
-                parents.push_back(cursor);
-                std::list<SgNode* > children;
+
+                std::list<SgNode* > children = attribute.frontier->get_children();
                 children.push_back(graph_node);
+                attribute.frontier->set_children(children);
+
+                std::list<SgNode* > parents;
+                parents.push_back(attribute.frontier);
                 graph_node->set_parents(parents);
-                cursor->set_children(children);
-                cursor = graph_node;
-                break;
+
+                return InheritedAttribute(graph_node, true, attribute.depth+1, node);
             }
         case V_SgForStatement:
             {
                 std::cout << "Add a for loop statement.\n";
+
                 SgOmpFlowGraphSerialNode* graph_node = new SgOmpFlowGraphSerialNode("", node);
                 has_serial_node_candidate = false;
-                add_task_node(graph_node);
-                std::list<SgNode* > parents;
-                parents.push_back(cursor);
-                std::list<SgNode* > children;
+
+                std::list<SgNode* > children = attribute.frontier->get_children();
                 children.push_back(graph_node);
+                attribute.frontier->set_children(children);
+
+                std::list<SgNode* > parents;
+                parents.push_back(attribute.frontier);
                 graph_node->set_parents(parents);
-                cursor->set_children(children);
-                cursor = graph_node;
-                break;
+
+                return InheritedAttribute(graph_node, true, attribute.depth+1, node);
+            }
+        case V_SgBasicBlock:
+            {
+                std::cout << "Skip the basic block.\n";
+                has_serial_node_candidate = false;
+
+                return InheritedAttribute(attribute.frontier, true, attribute.depth+1, node);
+            }
+        case V_SgForInitStatement:
+            {
+                return InheritedAttribute(NULL, false, attribute.depth+1, node);
             }
         default:
             {
-
+                if (isSgStatement(node)) {
+                    std::cout << "======  Meet a new SgNode. ======\n";
+                };
+                return InheritedAttribute(attribute.frontier, true, attribute.depth+1, node);
             }
     };
 
@@ -83,8 +106,10 @@ SgOmpFlowGraphNode* generate_graph(SgProject* project) {
 
     ROSE_ASSERT(project != NULL);
 
+    SgOmpFlowGraphSerialNode* graph_node = new SgOmpFlowGraphSerialNode("", project);
+    InheritedAttribute attribute(graph_node, true, 0, NULL);
     OmpFlowGraph task_graph;
-    task_graph.traverseInputFiles(project, preorder);
+    task_graph.traverseInputFiles(project, attribute);
 
     return task_graph.get_root();
 };

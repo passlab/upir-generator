@@ -14,12 +14,16 @@ int main (int argc, char *argv[]) {
     // generate the task graph
     SgOmpFlowGraphNode* root = generate_graph(project);
 
-    std::list<SgNode* > children = root->get_children();
-
+    // list all statements in the task graph
     printf("Check the task graph....\n");
+    std::cout << "SgNode: " << root->get_node()->sage_class_name() << " at line: " << root->get_node()->get_startOfConstruct()->get_line() << "\n";
+    std::list<SgNode* > children = root->get_children();
     while (children.size()) {
-        SgNode* node = ((SgOmpFlowGraphNode*)children.front())->get_node();
-        std::cout << "SgNode: " << node->sage_class_name() << " at line: " << node->get_startOfConstruct()->get_line() << "\n";
+        std::list<SgNode* >::iterator iter;
+        for (iter = children.begin(); iter != children.end(); iter++) {
+            SgNode* node = ((SgOmpFlowGraphNode*)(*iter))->get_node();
+            std::cout << "SgNode: " << node->sage_class_name() << " at line: " << node->get_startOfConstruct()->get_line() << "\n";
+        };
         children = ((SgOmpFlowGraphNode*)children.front())->get_children();
     };
 

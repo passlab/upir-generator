@@ -13,9 +13,8 @@ int main(int argc, char** argv) {
     printf("j = %d\n", j);
 
 #pragma omp for
-    for (i = 0; i < 12; i++) {
+    for (i = 0; i < 12; i++)
         printf("Thread ID: %d, i = %d\n", omp_get_thread_num(), i);
-    };
 
     j = 66;
 #pragma omp barrier
