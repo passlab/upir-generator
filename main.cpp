@@ -6,6 +6,22 @@ extern void visualize(SgOmpFlowGraphNode*);
 using namespace SageBuilder;
 using namespace SageInterface;
 
+void visit(SgOmpFlowGraphNode* root) {
+
+    std::cout << "SgNode: " << root->get_node()->sage_class_name() << " at line: " << root->get_node()->get_startOfConstruct()->get_line() << "\n";
+
+    std::list<SgNode* > children = root->get_children();
+    if (children.size()) {
+        std::list<SgNode* >::iterator iter;
+        for (iter = children.begin(); iter != children.end(); iter++) {
+            SgOmpFlowGraphNode* child = ((SgOmpFlowGraphNode*)(*iter));
+            SgNode* node = child->get_node();
+            visit(child);
+        };
+    };
+}
+
+
 int main (int argc, char *argv[]) {
 
     // generate the REX AST
@@ -16,16 +32,7 @@ int main (int argc, char *argv[]) {
 
     // list all statements in the task graph
     printf("Check the task graph....\n");
-    std::cout << "SgNode: " << root->get_node()->sage_class_name() << " at line: " << root->get_node()->get_startOfConstruct()->get_line() << "\n";
-    std::list<SgNode* > children = root->get_children();
-    while (children.size()) {
-        std::list<SgNode* >::iterator iter;
-        for (iter = children.begin(); iter != children.end(); iter++) {
-            SgNode* node = ((SgOmpFlowGraphNode*)(*iter))->get_node();
-            std::cout << "SgNode: " << node->sage_class_name() << " at line: " << node->get_startOfConstruct()->get_line() << "\n";
-        };
-        children = ((SgOmpFlowGraphNode*)children.front())->get_children();
-    };
+    visit(root);
 
     // visualize the graph to a DOT file
     //visualize(root);

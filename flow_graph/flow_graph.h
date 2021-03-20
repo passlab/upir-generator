@@ -11,7 +11,6 @@ class InheritedAttribute {
         size_t depth = 0;
 
         InheritedAttribute(SgOmpFlowGraphNode* __frontier, bool __to_explore, size_t __depth, SgNode* __expr_parent) : frontier(__frontier), to_explore(__to_explore), depth(__depth), expr_parent(__expr_parent) { };
-        InheritedAttribute(const InheritedAttribute & attribute) : frontier(attribute.frontier), to_explore(attribute.to_explore), depth(attribute.depth), expr_parent(attribute.expr_parent) { };
 
 };
 
@@ -23,9 +22,9 @@ class OmpFlowGraph : public AstTopDownProcessing<InheritedAttribute> {
         std::vector<SgOmpFlowGraphNode* > task_nodes;
         bool has_serial_node_candidate = false;
         size_t previous_depth = 0;
+        virtual InheritedAttribute evaluateInheritedAttribute(SgNode*, InheritedAttribute);
 
     public:
-        virtual InheritedAttribute evaluateInheritedAttribute(SgNode*, InheritedAttribute);
         SgOmpFlowGraphNode* get_root() { return root; };
         std::vector<SgOmpFlowGraphNode* >* get_nodes() { return &task_nodes; };
         void add_task_node(SgOmpFlowGraphNode* __node) { task_nodes.push_back(__node); };

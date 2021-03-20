@@ -13,9 +13,10 @@ InheritedAttribute OmpFlowGraph::evaluateInheritedAttribute(SgNode* node, Inheri
         case V_SgFunctionDefinition:
             {
                 std::cout << "Add a function definition.\n";
-                root = new SgOmpFlowGraphSerialNode("", node);
+                SgOmpFlowGraphSerialNode* graph_node = new SgOmpFlowGraphSerialNode("", node);
+                root = graph_node;
 
-                return InheritedAttribute(root, true, attribute.depth+1, node);
+                return InheritedAttribute(graph_node, true, attribute.depth+1, node);
             }
         case V_SgVariableDeclaration:
         case V_SgExprStatement:
@@ -26,7 +27,7 @@ InheritedAttribute OmpFlowGraph::evaluateInheritedAttribute(SgNode* node, Inheri
                 };
                 // omit the current node and its sub-tree if it doesn't need to be explored
                 SgNode* parent = node->get_parent();
-                if (attribute.frontier == NULL || has_serial_node_candidate || isSgForStatement(parent)) {
+                if (attribute.frontier == NULL || has_serial_node_candidate || (isSgForStatement(parent)) && (isSgForStatement(parent)->get_loop_body() != node)) {
                     return InheritedAttribute(NULL, false, attribute.depth+1, node);
                 };
 
@@ -46,9 +47,11 @@ InheritedAttribute OmpFlowGraph::evaluateInheritedAttribute(SgNode* node, Inheri
                 cursor = attribute.expr_parent;
                 return InheritedAttribute(NULL, false, attribute.depth+1, node);
             }
-        case V_SgPragmaDeclaration:
+        case V_SgOmpForStatement:
+        case V_SgOmpParallelStatement:
+        case V_SgOmpBarrierStatement:
             {
-                std::cout << "Add a #pragma.\n";
+                std::cout << "Add an omp pragma.\n";
 
                 SgOmpFlowGraphTaskNode* graph_node = new SgOmpFlowGraphTaskNode("", node);
                 has_serial_node_candidate = false;
@@ -94,7 +97,7 @@ InheritedAttribute OmpFlowGraph::evaluateInheritedAttribute(SgNode* node, Inheri
         default:
             {
                 if (isSgStatement(node)) {
-                    std::cout << "======  Meet a new SgNode. ======\n";
+                    std::cout << "======  Meet a new SgNode: " << node->sage_class_name() << " ======\n";
                 };
                 return InheritedAttribute(attribute.frontier, true, attribute.depth+1, node);
             }

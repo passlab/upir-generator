@@ -15,8 +15,8 @@ make
 
 # Run
 
-For now, it will generate the REX AST but use a dummy task graph for visualization.
+It will generate a task graph based on the REX AST, but for now, the visualization is only to list all the task nodes in the graph in pre-order.
 
 ```bash
-./pfg.out test.c
+./pfg.out -rose:openmp:ast_only test.c
 ```
