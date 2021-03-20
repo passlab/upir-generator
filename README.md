@@ -27,12 +27,13 @@ For the given input `test.c`, the SgStatements in the task graph would be:
 Check the task graph....
 SgNode: SgFunctionDefinition at line: 5
 SgNode: SgVariableDeclaration at line: 7
-SgNode: SgPragmaDeclaration at line: 10
+SgNode: SgOmpParallelStatement at line: 10
 SgNode: SgVariableDeclaration at line: 12
-SgNode: SgPragmaDeclaration at line: 15
+SgNode: SgOmpForStatement at line: 15
 SgNode: SgForStatement at line: 16
+SgNode: SgExprStatement at line: 17
 SgNode: SgExprStatement at line: 19
-SgNode: SgPragmaDeclaration at line: 20
+SgNode: SgOmpBarrierStatement at line: 20
 SgNode: SgExprStatement at line: 21
 SgNode: SgExprStatement at line: 24
 ```
