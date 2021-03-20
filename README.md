@@ -20,3 +20,19 @@ It will generate a task graph based on the REX AST, but for now, the visualizati
 ```bash
 ./pfg.out -rose:openmp:ast_only test.c
 ```
+
+For the given input `test.c`, the SgStatements in the task graph would be:
+
+```bash
+Check the task graph....
+SgNode: SgFunctionDefinition at line: 5
+SgNode: SgVariableDeclaration at line: 7
+SgNode: SgPragmaDeclaration at line: 10
+SgNode: SgVariableDeclaration at line: 12
+SgNode: SgPragmaDeclaration at line: 15
+SgNode: SgForStatement at line: 16
+SgNode: SgExprStatement at line: 19
+SgNode: SgPragmaDeclaration at line: 20
+SgNode: SgExprStatement at line: 21
+SgNode: SgExprStatement at line: 24
+```
