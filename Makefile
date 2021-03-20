@@ -3,7 +3,7 @@ ifeq (${REX_INSTALL},)
 endif
 
 default: main.cpp ./flow_graph/flow_graph.cpp ./visualization/visualization.cpp
-	g++ main.cpp ./flow_graph/flow_graph.cpp ./visualization/visualization.cpp -I./flow_graph -I./visualization -I${REX_INSTALL}/include/rose -L${REX_INSTALL}/lib -lrose -lboost_system -o pfg.out
+	g++ main.cpp ./flow_graph/flow_graph.cpp ./visualization/visualization.cpp -I./flow_graph -I./visualization -I${REX_INSTALL}/include/rose -L${REX_INSTALL}/lib -lrose -lboost_system -o pfgg.out
 
 dummy: dummy.cpp ./flow_graph/flow_graph.cpp ./visualization/visualization.cpp
 	g++ dummy.cpp ./flow_graph/flow_graph.cpp ./visualization/visualization.cpp -I./flow_graph -I./visualization -I${REX_INSTALL}/include/rose -L${REX_INSTALL}/lib -lrose -lboost_system -o dummy.out
