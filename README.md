@@ -4,7 +4,7 @@ PFGG is a tool based on REX compiler to generate a parallel flow graph, which re
 
 # Prerequisite
 
-REX compiler is required. Please check this [guide](https://github.com/passlab/rexompiler/wiki/REX-compiler-compilation) for installation.
+REX compiler is required. Any other dependencies will be installed while building REX. Please check this [guide](https://github.com/passlab/rexompiler/wiki/REX-compiler-compilation) for REX installation.
 Then the environment variable `REX_INSTALL` must be properly set to indicates the location of REX compiler.
 
 For example, if the REX compiler is installed under `/opt/rex_install` as follows,
