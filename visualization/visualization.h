@@ -1,11 +1,9 @@
 #include "flow_graph.h"
 
-void dummy_visualize(Node*);
+void draw_base_node();
 
-void draw_base_node(Node*);
+void draw_serial_node();
 
-void draw_serial_node(Node*);
-
-void draw_task_node(Node*);
+void draw_task_node();
 
 void draw_edge();

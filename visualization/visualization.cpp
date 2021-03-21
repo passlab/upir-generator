@@ -7,9 +7,3 @@ void visualize(SgOmpFlowGraphNode* node) {
 
 };
 
-void dummy_visualize(Node* node) {
-
-    // implmentation
-    printf("Generate a DOT file.\n");
-
-};
