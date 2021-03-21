@@ -5,8 +5,21 @@ PFGG is a tool based on REX compiler to generate a parallel flow graph, which re
 # Prerequisite
 
 REX compiler is required. Please check this [guide](https://github.com/passlab/rexompiler/wiki/REX-compiler-compilation) for installation.
-Then the environment variables `REX_ROOT` and `REX_INSTALL` must be properly set to indicates the location of REX compiler.
+Then the environment variable `REX_INSTALL` must be properly set to indicates the location of REX compiler.
 
+For example, if the REX compiler is installed under `/rexdev/rex_install` as follows,
+```bash
+rexdev
+├── rex_build
+├── rex_install
+│   ├── bin
+│   ├── include
+│   ├── lib
+│   └── share
+└── rex_src
+
+```
+`export REX_INSTALL=/rexdev/rex_install` will meet the requirement for building PFGG.
 
 # Build
 
@@ -17,6 +30,7 @@ make
 # Run
 
 It will generate a task graph based on the REX AST, but for now, the visualization is only to list all the task nodes in the graph in pre-order.
+Please notice that the flag `-rose:openmp:ast_only` has to be specified.
 
 ```bash
 ./pfgg.out -rose:openmp:ast_only test.c
