@@ -38,17 +38,17 @@ make
 
 # Run
 
-It will generate a task graph based on the REX AST, but for now, the visualization is only to list all the task nodes in the graph in pre-order.
+It will generate a parallel flow graph based on the REX AST, but for now, the visualization is only to list all the graph nodes in pre-order.
 Please notice that the flag `-rose:openmp:ast_only` has to be specified.
 
 ```bash
 ./pfgg.out -rose:openmp:ast_only test.c
 ```
 
-For the given input `test.c`, the SgStatements in the task graph would be:
+For the given input `test.c`, the SgStatements in the parallel flow graph would be:
 
 ```bash
-Check the task graph....
+Check the parallel flow graph....
 SgNode: SgFunctionDefinition at line: 5
 SgNode: SgVariableDeclaration at line: 7
 SgNode: SgOmpParallelStatement at line: 10
