@@ -53,6 +53,8 @@ std::string get_list_element(std::list<std::string> list, int i) {
         };
 	return *k;
     }
+    // TODO: fix the missing return statement
+    return "";
 };
 
 std::string get_node_types(SgOmpFlowGraphNode* node) {
