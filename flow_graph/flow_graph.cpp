@@ -18,6 +18,12 @@ InheritedAttribute OmpFlowGraph::evaluateInheritedAttribute(SgNode* node, Inheri
 
                 return InheritedAttribute(graph_node, true, attribute.depth+1, node);
             }
+        case V_SgAddOp:
+            {
+                std::cout << "Found a SgAddOp node.\n";
+
+                return InheritedAttribute(NULL, false, attribute.depth+1, node);
+            }
         case V_SgVariableDeclaration:
         case V_SgExprStatement:
             {
@@ -56,6 +62,9 @@ InheritedAttribute OmpFlowGraph::evaluateInheritedAttribute(SgNode* node, Inheri
                 SgOmpFlowGraphTaskNode* graph_node = new SgOmpFlowGraphTaskNode("", node);
                 has_serial_node_candidate = false;
 
+                // set up an average cost
+                graph_node->set_cost(4000);
+
                 std::list<SgNode* > children = attribute.frontier->get_children();
                 children.push_back(graph_node);
                 attribute.frontier->set_children(children);
@@ -72,6 +81,25 @@ InheritedAttribute OmpFlowGraph::evaluateInheritedAttribute(SgNode* node, Inheri
 
                 SgOmpFlowGraphSerialNode* graph_node = new SgOmpFlowGraphSerialNode("", node);
                 has_serial_node_candidate = false;
+
+                SgInitializedName * orig_index = NULL;
+                SgExpression* orig_lower = NULL;
+                SgExpression* orig_upper = NULL;
+                SgExpression* orig_stride = NULL;
+                bool isIncremental = true;
+                bool is_canonical = false;
+                is_canonical = SageInterface::isCanonicalForLoop(isSgForStatement(node), &orig_index, &orig_lower, &orig_upper, &orig_stride, NULL, &isIncremental);
+                std::string lower_bound = orig_lower->unparseToString();
+                std::string upper_bound = orig_upper->unparseToString();
+                std::string stride = orig_stride->unparseToString();
+                int iteration_amount = (std::stoi(upper_bound) - std::stoi(lower_bound))/std::stoi(stride);
+                std::cout << "Lower bound: " << lower_bound << std::endl;
+                std::cout << "Upper bound: " << upper_bound << std::endl;
+                std::cout << "Stride: " << stride << std::endl;
+                std::cout << "Iteration amount: " << iteration_amount << std::endl;
+
+                // set up an average cost
+                graph_node->set_cost(iteration_amount);
 
                 std::list<SgNode* > children = attribute.frontier->get_children();
                 children.push_back(graph_node);
