@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.13.4)
 project(standalone-dialect LANGUAGES CXX C)
 
+if(POLICY CMP0116)
+  cmake_policy(SET CMP0116 NEW)
+endif()
+
 set(CMAKE_BUILD_WITH_INSTALL_NAME_DIR ON)
 
 set(CMAKE_CXX_STANDARD 14 CACHE STRING "C++ standard to conform to")
@@ -33,3 +37,26 @@ add_subdirectory(lib)
 add_subdirectory(test)
 add_subdirectory(standalone-opt)
 add_subdirectory(standalone-translate)
+
+set(LLVM_LINK_COMPONENTS
+  Support
+  )
+
+# rex2mlir source files
+set(REX2MLIR_SOURCE_FILES
+    rex2mlir.cpp
+    parser/AST.cpp
+    mlir/MLIRGen.cpp
+    mlir/Dialect.cpp
+)
+
+add_executable(rex2mlir ${REX2MLIR_SOURCE_FILES})
+target_compile_options(rex2mlir PUBLIC -fno-rtti)
+add_dependencies(rex2mlir ToyCh2OpsIncGen)
+target_link_libraries(rex2mlir
+  PRIVATE
+    MLIRAnalysis
+    MLIRIR
+    MLIRParser
+    MLIRSideEffectInterfaces
+    MLIRTransforms)
