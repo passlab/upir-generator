@@ -246,4 +246,14 @@ def TransposeOp : Toy_Op<"transpose"> {
   let verifier = [{ return ::verify(*this); }];
 }
 
+def SpmdOp : Toy_Op<"spmd"> {
+  let summary = "spmd operation";
+  let description = [{
+    Create a SPMD region and perform parallel computing.
+  }];
+
+  let regions = (region AnyRegion:$region);
+
+}
+
 #endif // TOY_OPS

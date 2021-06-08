@@ -112,49 +112,54 @@ int dumpMLIR() {
 }
 
 void convertREX() {
-    std::cout << "Set up MLIR environment....\n" << std::endl;
+    std::cout << "Set up MLIR environment...." << std::endl;
     mlir::MLIRContext context;
     context.getOrLoadDialect<mlir::toy::ToyDialect>();
     context.getOrLoadDialect<mlir::StandardOpsDialect>();
     mlir::OpBuilder builder = mlir::OpBuilder(&context);
 
-    std::cout << "Prepare a dummy code location....\n" << std::endl;
+    std::cout << "Prepare a dummy code location...." << std::endl;
     mlir::Location location = builder.getUnknownLoc();
 
-    std::cout << "Prepare base function parameters....\n" << std::endl;
+    std::cout << "Prepare base function parameters...." << std::endl;
     llvm::ArrayRef<std::unique_ptr<llvm::StringRef>> args;
     llvm::SmallVector<mlir::Type, 4> arg_types(args.size(), builder.getNoneType());
     auto func_type = builder.getFunctionType(arg_types, llvm::None);
-    llvm::ArrayRef<std::pair<mlir::Identifier, mlir::Attribute> > attrs;
+    llvm::ArrayRef<std::pair<mlir::Identifier, mlir::Attribute> > attrs = {};
 
-    std::cout << "Prepare base function name....\n" << std::endl;
+    std::cout << "Prepare base function name...." << std::endl;
     llvm::StringRef func_name = std::string("foo");
 
-    std::cout << "Create a base function....\n" << std::endl;
+    std::cout << "Create a base function...." << std::endl;
     mlir::FuncOp func = mlir::FuncOp::create(location, func_name, func_type, attrs);
 
-    std::cout << "Create the body of base function....\n" << std::endl;
+    std::cout << "Create the body of base function...." << std::endl;
     mlir::Block &entryBlock = *func.addEntryBlock();
 
     builder.setInsertionPointToStart(&entryBlock);
 
+    std::cout << "Insert a SPMD region to the base function...." << std::endl;
+    mlir::toy::SpmdOp spmd = builder.create<mlir::toy::SpmdOp>(location);
+    mlir::Region& body = spmd.getRegion();
+    builder.createBlock(&body);
 
-    std::cout << "Insert a printf function call....\n" << std::endl;
+
+    std::cout << "Insert a printf function call to the SPMD region...." << std::endl;
     llvm::StringRef print_name = std::string("printf");
     mlir::TypeRange print_type;
     mlir::ValueRange print_value = {};
     builder.create<mlir::CallOp>(location, print_name, print_type, print_value);
 
-    std::cout << "Create a module that contains multiple functions....\n" << std::endl;
+    std::cout << "Create a module that contains multiple functions...." << std::endl;
     mlir::ModuleOp theModule = mlir::ModuleOp::create(builder.getUnknownLoc());
     theModule.push_back(func);
 
     mlir::OwningModuleRef module = theModule;
     assert (module);
 
-    std::cout << "Dump the MLIR AST....\n" << std::endl;
+    std::cout << "Dump the MLIR AST...." << std::endl;
     module->dump();
-    std::cout << "All done....\n" << std::endl;
+    std::cout << "All done...." << std::endl;
 }
 
 int dumpAST() {
