@@ -28,6 +28,10 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <iostream>
+#include "mlir/InitAllDialects.h"
+#include "mlir/InitAllPasses.h"
+
 using namespace toy;
 namespace cl = llvm::cl;
 
@@ -107,6 +111,52 @@ int dumpMLIR() {
   return 0;
 }
 
+void convertREX() {
+    std::cout << "Set up MLIR environment....\n" << std::endl;
+    mlir::MLIRContext context;
+    context.getOrLoadDialect<mlir::toy::ToyDialect>();
+    context.getOrLoadDialect<mlir::StandardOpsDialect>();
+    mlir::OpBuilder builder = mlir::OpBuilder(&context);
+
+    std::cout << "Prepare a dummy code location....\n" << std::endl;
+    mlir::Location location = builder.getUnknownLoc();
+
+    std::cout << "Prepare base function parameters....\n" << std::endl;
+    llvm::ArrayRef<std::unique_ptr<llvm::StringRef>> args;
+    llvm::SmallVector<mlir::Type, 4> arg_types(args.size(), builder.getNoneType());
+    auto func_type = builder.getFunctionType(arg_types, llvm::None);
+    llvm::ArrayRef<std::pair<mlir::Identifier, mlir::Attribute> > attrs;
+
+    std::cout << "Prepare base function name....\n" << std::endl;
+    llvm::StringRef func_name = std::string("foo");
+
+    std::cout << "Create a base function....\n" << std::endl;
+    mlir::FuncOp func = mlir::FuncOp::create(location, func_name, func_type, attrs);
+
+    std::cout << "Create the body of base function....\n" << std::endl;
+    mlir::Block &entryBlock = *func.addEntryBlock();
+
+    builder.setInsertionPointToStart(&entryBlock);
+
+
+    std::cout << "Insert a printf function call....\n" << std::endl;
+    llvm::StringRef print_name = std::string("printf");
+    mlir::TypeRange print_type;
+    mlir::ValueRange print_value = {};
+    builder.create<mlir::CallOp>(location, print_name, print_type, print_value);
+
+    std::cout << "Create a module that contains multiple functions....\n" << std::endl;
+    mlir::ModuleOp theModule = mlir::ModuleOp::create(builder.getUnknownLoc());
+    theModule.push_back(func);
+
+    mlir::OwningModuleRef module = theModule;
+    assert (module);
+
+    std::cout << "Dump the MLIR AST....\n" << std::endl;
+    module->dump();
+    std::cout << "All done....\n" << std::endl;
+}
+
 int dumpAST() {
   if (inputType == InputType::MLIR) {
     llvm::errs() << "Can't dump a Toy AST when the input is MLIR\n";
@@ -123,6 +173,9 @@ int dumpAST() {
 
 int main(int argc, char **argv) {
   // Register any command line options.
+  mlir::DialectRegistry registry;
+  registry.insert<mlir::StandardOpsDialect>();
+
   mlir::registerAsmPrinterCLOptions();
   mlir::registerMLIRContextCLOptions();
   cl::ParseCommandLineOptions(argc, argv, "toy compiler\n");
@@ -135,6 +188,8 @@ int main(int argc, char **argv) {
   default:
     llvm::errs() << "No action specified (parsing only?), use -emit=<action>\n";
   }
+
+  convertREX();
 
   return 0;
 }
