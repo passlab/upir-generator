@@ -254,6 +254,14 @@ def SpmdOp : Toy_Op<"spmd"> {
 
   let regions = (region AnyRegion:$region);
 
+  let arguments = (ins Optional<AnyType>:$num_threads_var);
+
+  let builders = [
+    OpBuilder<(ins CArg<"ArrayRef<NamedAttribute>", "{}">:$attributes)>
+  ];
+
+  let printer = [{ return ::printSpmdOp(p, *this); }];
+
 }
 
 #endif // TOY_OPS

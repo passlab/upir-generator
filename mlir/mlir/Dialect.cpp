@@ -85,6 +85,14 @@ static void printBinaryOp(mlir::OpAsmPrinter &printer, mlir::Operation *op) {
   printer.printFunctionalType(op->getOperandTypes(), op->getResultTypes());
 }
 
+static void printSpmdOp(mlir::OpAsmPrinter &printer, mlir::toy::SpmdOp op) {
+  printer << "parallel.spmd";
+  if (auto threads = op.num_threads_var())
+    printer << " num_threads(" << threads << " : " << threads.getType() << ")";
+
+  printer.printRegion(op.getRegion());
+}
+
 //===----------------------------------------------------------------------===//
 // ConstantOp
 

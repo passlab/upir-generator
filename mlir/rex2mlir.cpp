@@ -116,6 +116,7 @@ void convertREX() {
     mlir::MLIRContext context;
     context.getOrLoadDialect<mlir::toy::ToyDialect>();
     context.getOrLoadDialect<mlir::StandardOpsDialect>();
+    context.getOrLoadDialect<mlir::scf::SCFDialect>();
     mlir::OpBuilder builder = mlir::OpBuilder(&context);
 
     std::cout << "Prepare a dummy code location...." << std::endl;
@@ -139,16 +140,28 @@ void convertREX() {
     builder.setInsertionPointToStart(&entryBlock);
 
     std::cout << "Insert a SPMD region to the base function...." << std::endl;
-    mlir::toy::SpmdOp spmd = builder.create<mlir::toy::SpmdOp>(location);
-    mlir::Region& body = spmd.getRegion();
-    builder.createBlock(&body);
+    mlir::Value num_threads = builder.create<mlir::ConstantIntOp>(location, 6, 32);
+    mlir::toy::SpmdOp spmd = builder.create<mlir::toy::SpmdOp>(location, num_threads);
+    mlir::Region &spmd_body = spmd.getRegion();
+    builder.createBlock(&spmd_body);
 
+    std::cout << "Insert a for loop to the SPMD region...." << std::endl;
+    mlir::Value upper_bound = builder.create<mlir::ConstantIndexOp>(location, 0);
+    mlir::Value lower_bound = builder.create<mlir::ConstantIndexOp>(location, 10);
+    mlir::Value step = builder.create<mlir::ConstantIndexOp>(location, 1);
+    mlir::ValueRange loop_value = {};
+    mlir::scf::ForOp loop = builder.create<mlir::scf::ForOp>(location, upper_bound, lower_bound, step, loop_value);
+    mlir::Region &loop_body = loop.getLoopBody();
+    mlir::Block &loop_block = loop_body.front();
+    builder.setInsertionPointToStart(&loop_block);
 
-    std::cout << "Insert a printf function call to the SPMD region...." << std::endl;
+    std::cout << "Insert a printf function call to the for loop...." << std::endl;
     llvm::StringRef print_name = std::string("printf");
-    mlir::TypeRange print_type;
-    mlir::ValueRange print_value = {};
-    builder.create<mlir::CallOp>(location, print_name, print_type, print_value);
+    mlir::StringAttr print_string = builder.getStringAttr(llvm::StringRef("This is a test.\n"));
+    mlir::Value print_value = builder.create<mlir::ConstantOp>(location, print_string);
+    mlir::ValueRange print_value_range = mlir::ValueRange(print_value);
+    mlir::TypeRange print_type = mlir::TypeRange(print_value_range);
+    builder.create<mlir::CallOp>(location, print_name, print_type, print_value_range);
 
     std::cout << "Create a module that contains multiple functions...." << std::endl;
     mlir::ModuleOp theModule = mlir::ModuleOp::create(builder.getUnknownLoc());
@@ -180,6 +193,7 @@ int main(int argc, char **argv) {
   // Register any command line options.
   mlir::DialectRegistry registry;
   registry.insert<mlir::StandardOpsDialect>();
+  registry.insert<mlir::scf::SCFDialect>();
 
   mlir::registerAsmPrinterCLOptions();
   mlir::registerMLIRContextCLOptions();
