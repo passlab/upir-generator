@@ -2,6 +2,15 @@
 
 This is an example of an out-of-tree [MLIR](https://mlir.llvm.org/) dialect for Parallel IR.
 
+## Workflow
+
+1. REX compiler parses the input source code and constructs a Sage AST.
+2. Optionally, we can perform some optimizations that won't eliminate any parallel information.
+3. By traversing the Sage AST, an MLIR AST using multiple dialects is created. The core part is `parallel` dialect, which converts the input OpenMP code to a language-neutral parallel IR.
+5. Based on their needs or toolchain, users can either use Sage AST or MLIR AST to perform optimization, transformation and the rest compiling work.
+
+MLIR libraries are required but not Clang.
+
 ## Building
 
 This setup assumes that you have built LLVM and MLIR in `$BUILD_DIR` and installed them to `$PREFIX`. To build and launch the tests, run
@@ -18,9 +27,9 @@ cmake --build . --target mlir-doc
 ```
 **Note**: Make sure to pass `-DLLVM_INSTALL_UTILS=ON` when building LLVM with CMake in order to install `FileCheck` to the chosen installation prefix.
 
-## Run
+## Running
 
-`rex2mlir` creates a MLIR AST for the following simple program and print out the AST.
+`rex2mlir` creates an MLIR AST for the following simple program and print out the AST.
 
 ```c
 void foo () {
@@ -31,8 +40,8 @@ void foo () {
 }
 ```
 
-In this example, three MLIR dialects are used, which are `std`, `scf`, and `parallel`.
-`parallel` dialect can be converted into `scf`, `omp`, `acc`, `llvm` or other suitable dialects.
+In this example, three MLIR dialects are used, which are [`std`](https://mlir.llvm.org/docs/Dialects/Standard/), [`scf`](https://mlir.llvm.org/docs/Dialects/SCFDialect/)([structured control flow](https://llvm.discourse.group/t/rfc-rename-loopops-dialect-to-scf-structured-control-flow/872)), and `parallel`.
+`parallel` dialect can be converted into [`scf`](https://mlir.llvm.org/docs/Dialects/SCFDialect/), [`omp`](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/), [`acc`](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/), [`llvm`](https://mlir.llvm.org/docs/Dialects/LLVM/) or other suitable dialects.
 
 The output should be:
 
