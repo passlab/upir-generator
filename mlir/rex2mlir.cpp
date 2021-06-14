@@ -33,6 +33,7 @@ void dummy() {
     context.getOrLoadDialect<mlir::toy::ToyDialect>();
     context.getOrLoadDialect<mlir::StandardOpsDialect>();
     context.getOrLoadDialect<mlir::scf::SCFDialect>();
+    context.getOrLoadDialect<mlir::omp::OpenMPDialect>();
     mlir::OpBuilder builder = mlir::OpBuilder(&context);
 
     std::cout << "Prepare a dummy code location...." << std::endl;
@@ -86,9 +87,20 @@ void dummy() {
     mlir::OwningModuleRef module = theModule;
     assert (module);
 
-    std::cout << "Dump the MLIR AST...." << std::endl;
+    std::cout << "Dump the MLIR AST....\n" << std::endl;
     module->dump();
-    std::cout << "All done...." << std::endl;
+
+    std::cout << "\nConvert Parallel dialect to OpenMP dialect....\n" << std::endl;
+    mlir::IRRewriter rewriter = mlir::IRRewriter(&context);
+
+    mlir::Value omp_num_threads = spmd.num_threads_var();
+    rewriter.setInsertionPointAfter(spmd);
+    mlir::omp::ParallelOp omp_parallel = rewriter.create<mlir::omp::ParallelOp>(location, nullptr, omp_num_threads, nullptr, mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), nullptr);
+    rewriter.inlineRegionBefore(spmd.region(), omp_parallel.region(), omp_parallel.region().begin());
+    rewriter.eraseOp(spmd);
+    module->dump();
+
+    std::cout << "\nAll done...." << std::endl;
 }
 
 
@@ -97,6 +109,7 @@ int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
   registry.insert<mlir::StandardOpsDialect>();
   registry.insert<mlir::scf::SCFDialect>();
+  registry.insert<mlir::omp::OpenMPDialect>();
 
   mlir::registerAsmPrinterCLOptions();
   mlir::registerMLIRContextCLOptions();

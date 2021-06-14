@@ -57,6 +57,7 @@ Insert a for loop to the SPMD region....
 Insert a printf function call to the for loop....
 Create a module that contains multiple functions....
 Dump the MLIR AST....
+
 module  {
   func @foo() {
     %c6_i32 = constant 6 : i32
@@ -71,5 +72,23 @@ module  {
     }
   }
 }
+
+Convert Parallel dialect to OpenMP dialect....
+
+module  {
+  func @foo() {
+    %c6_i32 = constant 6 : i32
+    omp.parallel num_threads(%c6_i32 : i32) {
+      %c0 = constant 0 : index
+      %c10 = constant 10 : index
+      %c1 = constant 1 : index
+      scf.for %arg0 = %c0 to %c10 step %c1 {
+        %cst = constant "This is a test.\0A"
+        %0 = call @printf(%cst) : (none) -> none
+      }
+    }
+  }
+}
+
 All done....
 ```

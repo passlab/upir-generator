@@ -57,6 +57,7 @@ target_link_libraries(rex2mlir
   PRIVATE
     MLIRAnalysis
     MLIRIR
+    MLIROpenMP
     MLIRParser
     MLIRSideEffectInterfaces
     MLIRTransforms)
