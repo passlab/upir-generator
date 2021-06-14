@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "toy/Dialect.h"
-#include "toy/MLIRGen.h"
+#include "pirg/Dialect.h"
+#include "pirg/MLIRGen.h"
 
 #include "mlir/IR/AsmState.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -30,7 +30,7 @@ void dummy() {
 
     std::cout << "Set up MLIR environment...." << std::endl;
     mlir::MLIRContext context;
-    context.getOrLoadDialect<mlir::toy::ToyDialect>();
+    context.getOrLoadDialect<mlir::pirg::PirgDialect>();
     context.getOrLoadDialect<mlir::StandardOpsDialect>();
     context.getOrLoadDialect<mlir::scf::SCFDialect>();
     context.getOrLoadDialect<mlir::omp::OpenMPDialect>();
@@ -58,7 +58,7 @@ void dummy() {
 
     std::cout << "Insert a SPMD region to the base function...." << std::endl;
     mlir::Value num_threads = builder.create<mlir::ConstantIntOp>(location, 6, 32);
-    mlir::toy::SpmdOp spmd = builder.create<mlir::toy::SpmdOp>(location, num_threads);
+    mlir::pirg::SpmdOp spmd = builder.create<mlir::pirg::SpmdOp>(location, num_threads);
     mlir::Region &spmd_body = spmd.getRegion();
     builder.createBlock(&spmd_body);
 
@@ -90,7 +90,7 @@ void dummy() {
     std::cout << "Dump the MLIR AST....\n" << std::endl;
     module->dump();
 
-    std::cout << "\nConvert Parallel dialect to OpenMP dialect....\n" << std::endl;
+    std::cout << "\nConvert Pirg dialect to OpenMP dialect....\n" << std::endl;
     mlir::IRRewriter rewriter = mlir::IRRewriter(&context);
 
     mlir::Value omp_num_threads = spmd.num_threads_var();
