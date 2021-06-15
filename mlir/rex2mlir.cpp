@@ -10,11 +10,6 @@
 #include "pirg/Dialect.h"
 #include "pirg/MLIRGen.h"
 
-#include "mlir/IR/AsmState.h"
-#include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/MLIRContext.h"
-#include "mlir/IR/Verifier.h"
-
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -117,8 +112,16 @@ int main(int argc, char **argv) {
 
   dummy();
 
+  mlir::MLIRContext context;
+  context.getOrLoadDialect<mlir::pirg::PirgDialect>();
+  context.getOrLoadDialect<mlir::StandardOpsDialect>();
+  context.getOrLoadDialect<mlir::scf::SCFDialect>();
+  context.getOrLoadDialect<mlir::omp::OpenMPDialect>();
+
   SgProject* project = frontend(argc, argv);
   assert(project);
+  mlir::OwningModuleRef mlir_module = generate_mlir(context, project);
+  mlir_module->dump();
 
   return 0;
 }
