@@ -25,10 +25,12 @@ include(AddLLVM)
 include(AddMLIR)
 include(HandleLLVMOptions)
 
+include_directories(SYSTEM ${REX_INSTALL}/include/rose)
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${MLIR_INCLUDE_DIRS})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_BINARY_DIR}/include)
+link_directories(${REX_INSTALL}/lib)
 link_directories(${LLVM_BUILD_LIBRARY_DIR})
 add_definitions(${LLVM_DEFINITIONS})
 
@@ -50,10 +52,12 @@ set(REX2MLIR_SOURCE_FILES
 )
 
 add_executable(rex2mlir ${REX2MLIR_SOURCE_FILES})
-target_compile_options(rex2mlir PUBLIC -fno-rtti)
 add_dependencies(rex2mlir PirgOpsIncGen)
+target_compile_options(rex2mlir PUBLIC -flarge-source-files)
 target_link_libraries(rex2mlir
   PRIVATE
+    rose
+    boost_system
     MLIRAnalysis
     MLIRIR
     MLIROpenMP

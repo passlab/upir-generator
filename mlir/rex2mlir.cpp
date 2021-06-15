@@ -25,6 +25,7 @@
 #include "mlir/InitAllDialects.h"
 #include "mlir/InitAllPasses.h"
 
+#include "rose.h"
 
 void dummy() {
 
@@ -115,6 +116,9 @@ int main(int argc, char **argv) {
   mlir::registerMLIRContextCLOptions();
 
   dummy();
+
+  SgProject* project = frontend(argc, argv);
+  assert(project);
 
   return 0;
 }
