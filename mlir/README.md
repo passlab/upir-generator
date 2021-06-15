@@ -61,7 +61,7 @@ Dump the MLIR AST....
 module  {
   func @foo() {
     %c6_i32 = constant 6 : i32
-    parallel.spmd num_threads(%c6_i32 : i32) {
+    pirg.spmd num_units(%c6_i32 : i32) {
       %c0 = constant 0 : index
       %c10 = constant 10 : index
       %c1 = constant 1 : index
@@ -73,7 +73,7 @@ module  {
   }
 }
 
-Convert Parallel dialect to OpenMP dialect....
+Convert PIRG dialect to OpenMP dialect....
 
 module  {
   func @foo() {
