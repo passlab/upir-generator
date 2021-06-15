@@ -53,8 +53,8 @@ void dummy() {
     builder.setInsertionPointToStart(&entryBlock);
 
     std::cout << "Insert a SPMD region to the base function...." << std::endl;
-    mlir::Value num_threads = builder.create<mlir::ConstantIntOp>(location, 6, 32);
-    mlir::pirg::SpmdOp spmd = builder.create<mlir::pirg::SpmdOp>(location, num_threads);
+    mlir::Value num_units = builder.create<mlir::ConstantIntOp>(location, 6, 32);
+    mlir::pirg::SpmdOp spmd = builder.create<mlir::pirg::SpmdOp>(location, num_units, nullptr, mlir::ValueRange(), mlir::ValueRange(), nullptr);
     mlir::Region &spmd_body = spmd.getRegion();
     builder.createBlock(&spmd_body);
 
@@ -89,7 +89,7 @@ void dummy() {
     std::cout << "\nConvert Pirg dialect to OpenMP dialect....\n" << std::endl;
     mlir::IRRewriter rewriter = mlir::IRRewriter(&context);
 
-    mlir::Value omp_num_threads = spmd.num_threads_var();
+    mlir::Value omp_num_threads = spmd.num_units();
     rewriter.setInsertionPointAfter(spmd);
     mlir::omp::ParallelOp omp_parallel = rewriter.create<mlir::omp::ParallelOp>(location, nullptr, omp_num_threads, nullptr, mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), nullptr);
     rewriter.inlineRegionBefore(spmd.region(), omp_parallel.region(), omp_parallel.region().begin());

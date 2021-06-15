@@ -36,8 +36,8 @@ void PirgDialect::initialize() {
 
 static void printSpmdOp(mlir::OpAsmPrinter &printer, mlir::pirg::SpmdOp op) {
   printer << "pirg.spmd";
-  if (auto threads = op.num_threads_var())
-    printer << " num_threads(" << threads << " : " << threads.getType() << ")";
+  if (auto threads = op.num_units())
+    printer << " num_units(" << threads << " : " << threads.getType() << ")";
 
   printer.printRegion(op.getRegion());
 }

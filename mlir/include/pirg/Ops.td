@@ -34,7 +34,7 @@ class Pirg_Op<string mnemonic, list<OpTrait> traits = []> :
 // An operation could be marked as 'NoSideEffect' as it is a pure operation
 // and may be removed if dead.
 
-def SpmdOp : Pirg_Op<"spmd"> {
+def SpmdOp : Pirg_Op<"spmd", [AttrSizedOperandSegments]> {
   let summary = "spmd operation";
   let description = [{
     Create a SPMD region and perform parallel computing.
@@ -42,13 +42,42 @@ def SpmdOp : Pirg_Op<"spmd"> {
 
   let regions = (region AnyRegion:$region);
 
-  let arguments = (ins Optional<AnyType>:$num_threads_var);
+  let arguments = (ins Optional<AnyType>:$num_units,
+             Optional<AnyType>:$nested_parallelism_level,
+             Variadic<AnyType>:$nested_parallelism_list,
+             Variadic<AnyType>:$data,
+             Optional<AnyType>:$cost);
 
   let builders = [
     OpBuilder<(ins CArg<"ArrayRef<NamedAttribute>", "{}">:$attributes)>
   ];
 
   let printer = [{ return ::printSpmdOp(p, *this); }];
+
+}
+
+def WorkshareOp : Pirg_Op<"workshare", [AttrSizedOperandSegments, AllTypesMatch<["lower_bound", "upper_bound", "step"]>]> {
+  let summary = "worksharing operation";
+  let description = [{
+    Distribute workload among the threads in a parallel region.
+  }];
+
+  let regions = (region AnyRegion:$region);
+
+  let arguments = (ins Optional<AnyType>:$chunk_size,
+             Variadic<Index>:$lower_bound,
+             Variadic<Index>:$upper_bound,
+             Variadic<Index>:$step,
+             OptionalAttr<StrAttr>:$schedule_policy,
+             Optional<AnyType>:$collapse,
+             Variadic<AnyType>:$distribute,
+             Optional<AnyType>:$simdlen,
+             Variadic<AnyType>:$data,
+             Optional<AnyType>:$cost);
+
+  let builders = [
+    OpBuilder<(ins CArg<"ArrayRef<NamedAttribute>", "{}">:$attributes)>
+  ];
 
 }
 

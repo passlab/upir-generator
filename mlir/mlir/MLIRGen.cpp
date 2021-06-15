@@ -65,7 +65,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                     int32_t num_thread_value = std::stoi(num_threads_string);
                     num_threads = builder.create<mlir::ConstantIntOp>(location, num_thread_value, 32);
                 }
-                mlir::pirg::SpmdOp spmd = builder.create<mlir::pirg::SpmdOp>(location, num_threads);
+                mlir::pirg::SpmdOp spmd = builder.create<mlir::pirg::SpmdOp>(location, num_threads, nullptr, mlir::ValueRange(), mlir::ValueRange(), nullptr);
                 mlir::Region &spmd_body = spmd.getRegion();
                 builder.createBlock(&spmd_body);
 
