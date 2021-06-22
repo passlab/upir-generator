@@ -68,6 +68,16 @@ static void printDataOp(mlir::OpAsmPrinter &printer, mlir::pirg::DataOp op) {
   printer.printRegion(op.getRegion());
 }
 
+static void printBarrierOp(mlir::OpAsmPrinter &printer, mlir::pirg::BarrierOp op) {
+  printer << "pirg.barrier";
+  if (auto task = op.task_id()) {
+    printer << " task(" << task << ")";
+  }
+  if (auto implicit = op.implicit()) {
+    printer << " implicit";
+  }
+}
+
 
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions

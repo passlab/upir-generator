@@ -126,3 +126,21 @@ def DataOp : Pirg_Op<"data", [AttrSizedOperandSegments]> {
 
 }
 
+def BarrierOp : Pirg_Op<"barrier", [AttrSizedOperandSegments]> {
+  let summary = "barrier operation";
+  let description = [{
+    Create a barrier for parallel units.
+  }];
+
+  let arguments = (ins Optional<AnyType>:$task_id,
+             Optional<AnyType>:$implicit,
+             Optional<AnyType>:$cost);
+
+  let builders = [
+    OpBuilder<(ins CArg<"ArrayRef<NamedAttribute>", "{}">:$attributes)>
+  ];
+
+  let printer = [{ return ::printBarrierOp(p, *this); }];
+
+}
+
