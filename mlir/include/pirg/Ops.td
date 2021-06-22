@@ -103,3 +103,26 @@ def TaskOp : Pirg_Op<"task", [AttrSizedOperandSegments]> {
 
 }
 
+def DataOp : Pirg_Op<"data", [AttrSizedOperandSegments]> {
+  let summary = "data operation";
+  let description = [{
+    Create a data environment and/or perform data movements.
+  }];
+
+  let regions = (region AnyRegion:$region);
+
+  let arguments = (ins Optional<AnyType>:$device_id,
+             OptionalAttr<StrAttr>:$device,
+             Variadic<AnyType>:$enter_vars,
+             Variadic<AnyType>:$update_vars,
+             Optional<AnyType>:$exit,
+             Optional<AnyType>:$cost);
+
+  let builders = [
+    OpBuilder<(ins CArg<"ArrayRef<NamedAttribute>", "{}">:$attributes)>
+  ];
+
+  let printer = [{ return ::printDataOp(p, *this); }];
+
+}
+

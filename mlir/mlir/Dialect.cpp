@@ -55,6 +55,19 @@ static void printTaskOp(mlir::OpAsmPrinter &printer, mlir::pirg::TaskOp op) {
   printer.printRegion(op.getRegion());
 }
 
+static void printDataOp(mlir::OpAsmPrinter &printer, mlir::pirg::DataOp op) {
+  printer << "pirg.data";
+  if (auto device = op.device()) {
+    printer << " target(" << device;
+    if (auto device_id = op.device_id()) {
+      printer << " : " << device_id;
+    }
+    printer << ")";
+  }
+
+  printer.printRegion(op.getRegion());
+}
+
 
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
