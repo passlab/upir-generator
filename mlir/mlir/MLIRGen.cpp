@@ -78,6 +78,50 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 builder.setInsertionPointAfter(spmd);
                 break;
             }
+        case V_SgOmpForStatement:
+            {
+                SgOmpForStatement* omp_target = isSgOmpForStatement(node);
+                SgForStatement* target = isSgForStatement(omp_target->get_body());
+                std::cout << "Insert a worksharing region...." << std::endl;
+
+                mlir::Value collapse = nullptr;
+                if (OmpSupport::hasClause(omp_target, V_SgOmpCollapseClause)) {
+                    Rose_STL_Container<SgOmpClause*> collapse_clauses = OmpSupport::getClause(omp_target, V_SgOmpCollapseClause);
+                    SgOmpCollapseClause* collapse_clause = isSgOmpCollapseClause(collapse_clauses[0]);
+                    std::string collapse_string = collapse_clause->get_expression()->unparseToString();
+                    int32_t collapse_value = std::stoi(collapse_string);
+                    collapse = builder.create<mlir::ConstantIntOp>(location, collapse_value, 32);
+                }
+                SgInitializedName* for_index = NULL;
+                SgExpression* for_lower = NULL;
+                SgExpression* for_upper = NULL;
+                SgExpression* for_stride = NULL;
+                bool isIncremental = true;
+                bool is_canonical = false;
+                is_canonical = SageInterface::isCanonicalForLoop(target, &for_index, &for_lower, &for_upper, &for_stride, NULL, &isIncremental);
+                ROSE_ASSERT(is_canonical == true);
+                int32_t lower_value = std::stoi(for_lower->unparseToString());
+                int32_t upper_value = std::stoi(for_upper->unparseToString());
+                int32_t stride_value = std::stoi(for_stride->unparseToString());
+
+                mlir::Value lower_bound = builder.create<mlir::ConstantIndexOp>(location, lower_value);
+                mlir::Value upper_bound = builder.create<mlir::ConstantIndexOp>(location, upper_value);
+                mlir::Value step = builder.create<mlir::ConstantIndexOp>(location, stride_value);
+
+                mlir::pirg::WorkshareOp workshare_target = builder.create<mlir::pirg::WorkshareOp>(location, nullptr, lower_bound, upper_bound, step, nullptr, nullptr, collapse, mlir::ValueRange(), nullptr, mlir::ValueRange(), nullptr);
+                mlir::Region &workshare_body = workshare_target.getRegion();
+                builder.createBlock(&workshare_body);
+
+                SgStatement* omp_workshare_body = omp_target->get_body();
+                if (isSgBasicBlock(omp_workshare_body)) {
+                    convert_basic_block(builder, isSgBasicBlock(omp_workshare_body));
+                } else {
+                    convert_statement(builder, omp_workshare_body);
+                }
+
+                builder.setInsertionPointAfter(workshare_target);
+                break;
+            }
         case V_SgOmpTargetStatement:
             {
                 SgOmpTargetStatement* target = isSgOmpTargetStatement(node);
@@ -124,7 +168,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 SgExpression* for_stride = NULL;
                 bool isIncremental = true;
                 bool is_canonical = false;
-                is_canonical = SageInterface::isCanonicalForLoop (target, &for_index, &for_lower, &for_upper, &for_stride, NULL, &isIncremental);
+                is_canonical = SageInterface::isCanonicalForLoop(target, &for_index, &for_lower, &for_upper, &for_stride, NULL, &isIncremental);
                 ROSE_ASSERT(is_canonical == true);
                 int32_t lower_value = std::stoi(for_lower->unparseToString());
                 int32_t upper_value = std::stoi(for_upper->unparseToString());

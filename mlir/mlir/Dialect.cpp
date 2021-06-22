@@ -42,6 +42,14 @@ static void printSpmdOp(mlir::OpAsmPrinter &printer, mlir::pirg::SpmdOp op) {
   printer.printRegion(op.getRegion());
 }
 
+static void printWorkshareOp(mlir::OpAsmPrinter &printer, mlir::pirg::WorkshareOp op) {
+  printer << "pirg.workshare";
+  if (auto collapse = op.collapse())
+    printer << " collapse(" << collapse << " : " << collapse.getType() << ")";
+
+  printer.printRegion(op.getRegion());
+}
+
 static void printTaskOp(mlir::OpAsmPrinter &printer, mlir::pirg::TaskOp op) {
   printer << "pirg.task";
   if (auto device = op.device()) {

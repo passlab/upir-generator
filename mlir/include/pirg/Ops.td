@@ -64,11 +64,12 @@ def WorkshareOp : Pirg_Op<"workshare", [AttrSizedOperandSegments, AllTypesMatch<
 
   let regions = (region AnyRegion:$region);
 
-  let arguments = (ins Optional<AnyType>:$chunk_size,
+  let arguments = (ins OptionalAttr<StrAttr>:$source_block,
              Variadic<Index>:$lower_bound,
              Variadic<Index>:$upper_bound,
              Variadic<Index>:$step,
              OptionalAttr<StrAttr>:$schedule_policy,
+             Optional<AnyType>:$chunk_size,
              Optional<AnyType>:$collapse,
              Variadic<AnyType>:$distribute,
              Optional<AnyType>:$simdlen,
@@ -78,6 +79,8 @@ def WorkshareOp : Pirg_Op<"workshare", [AttrSizedOperandSegments, AllTypesMatch<
   let builders = [
     OpBuilder<(ins CArg<"ArrayRef<NamedAttribute>", "{}">:$attributes)>
   ];
+
+  let printer = [{ return ::printWorkshareOp(p, *this); }];
 
 }
 
