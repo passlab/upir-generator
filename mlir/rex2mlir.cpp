@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
   mlir::registerAsmPrinterCLOptions();
   mlir::registerMLIRContextCLOptions();
 
-  dummy();
+  //dummy();
 
   mlir::MLIRContext context;
   context.getOrLoadDialect<mlir::pirg::PirgDialect>();

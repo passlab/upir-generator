@@ -81,3 +81,25 @@ def WorkshareOp : Pirg_Op<"workshare", [AttrSizedOperandSegments, AllTypesMatch<
 
 }
 
+def TaskOp : Pirg_Op<"task", [AttrSizedOperandSegments]> {
+  let summary = "task operation";
+  let description = [{
+    Create a task region, which can be handled on the host or devices.
+  }];
+
+  let regions = (region AnyRegion:$region);
+
+  let arguments = (ins Optional<AnyType>:$device_id,
+             OptionalAttr<StrAttr>:$device,
+             Optional<AnyType>:$condition,
+             Variadic<AnyType>:$depend,
+             Optional<AnyType>:$cost);
+
+  let builders = [
+    OpBuilder<(ins CArg<"ArrayRef<NamedAttribute>", "{}">:$attributes)>
+  ];
+
+  let printer = [{ return ::printTaskOp(p, *this); }];
+
+}
+

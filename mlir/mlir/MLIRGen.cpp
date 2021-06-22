@@ -78,6 +78,41 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 builder.setInsertionPointAfter(spmd);
                 break;
             }
+        case V_SgOmpTargetStatement:
+            {
+                SgOmpTargetStatement* target = isSgOmpTargetStatement(node);
+                std::cout << "Insert a target region...." << std::endl;
+                mlir::StringAttr device = builder.getStringAttr(llvm::StringRef("nvptx"));
+                mlir::pirg::TaskOp task_target = builder.create<mlir::pirg::TaskOp>(location, nullptr, device, nullptr, mlir::ValueRange(), nullptr);
+                mlir::Region &task_body = task_target.getRegion();
+                builder.createBlock(&task_body);
+
+                SgStatement* omp_target_body = target->get_body();
+                if (isSgBasicBlock(omp_target_body)) {
+                    convert_basic_block(builder, isSgBasicBlock(omp_target_body));
+                } else {
+                    convert_statement(builder, omp_target_body);
+                }
+                builder.setInsertionPointAfter(task_target);
+                break;
+            }
+        case V_SgOmpTaskStatement:
+            {
+                SgOmpTaskStatement* target = isSgOmpTaskStatement(node);
+                std::cout << "Insert a task region...." << std::endl;
+                mlir::pirg::TaskOp task = builder.create<mlir::pirg::TaskOp>(location, nullptr, nullptr, nullptr, mlir::ValueRange(), nullptr);
+                mlir::Region &task_body = task.getRegion();
+                builder.createBlock(&task_body);
+
+                SgStatement* omp_task_body = target->get_body();
+                if (isSgBasicBlock(omp_task_body)) {
+                    convert_basic_block(builder, isSgBasicBlock(omp_task_body));
+                } else {
+                    convert_statement(builder, omp_task_body);
+                }
+                builder.setInsertionPointAfter(task);
+                break;
+            }
         case V_SgForStatement:
             {
                 SgForStatement* target = isSgForStatement(node);
