@@ -61,9 +61,19 @@ void dummy() {
 
     builder.setInsertionPointToStart(&entryBlock);
 
+    // parallel data
+    mlir::StringAttr data_symbol_attr = builder.getStringAttr(llvm::StringRef("a"));
+    mlir::Value data_symbol = builder.create<mlir::ConstantOp>(location, data_symbol_attr);
+    mlir::StringAttr sharing_type_attr = builder.getStringAttr(llvm::StringRef("shared"));
+    mlir::Value sharing_type = builder.create<mlir::ConstantOp>(location, sharing_type_attr);
+    mlir::StringAttr sharing_visibility_attr = builder.getStringAttr(llvm::StringRef("implicit"));
+    mlir::Value sharing_visibility = builder.create<mlir::ConstantOp>(location, sharing_visibility_attr);
+    llvm::ArrayRef<mlir::Value> parallel_data = {data_symbol, sharing_type, sharing_visibility};
+    mlir::ValueRange parallel_data_range = mlir::ValueRange(parallel_data);
+
     std::cout << "Insert a SPMD region to the base function...." << std::endl;
     mlir::Value num_units = builder.create<mlir::ConstantIntOp>(location, 6, 32);
-    mlir::pirg::SpmdOp spmd = builder.create<mlir::pirg::SpmdOp>(location, num_units, nullptr, mlir::ValueRange(), mlir::ValueRange(), nullptr);
+    mlir::pirg::SpmdOp spmd = builder.create<mlir::pirg::SpmdOp>(location, num_units, nullptr, mlir::ValueRange(), parallel_data_range, nullptr);
     mlir::Region &spmd_body = spmd.getRegion();
     builder.createBlock(&spmd_body);
 
@@ -128,7 +138,7 @@ int main(int argc, char **argv) {
   mlir::registerAsmPrinterCLOptions();
   mlir::registerMLIRContextCLOptions();
 
-  //dummy();
+  dummy();
 
   mlir::MLIRContext context;
   context.getOrLoadDialect<mlir::pirg::PirgDialect>();

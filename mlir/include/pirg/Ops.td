@@ -25,6 +25,13 @@ def Pirg_Dialect : Dialect {
 class Pirg_Op<string mnemonic, list<OpTrait> traits = []> :
     Op<Pirg_Dialect, mnemonic, traits>;
 
+// Provide a definition for the Toy StructType for use in ODS. This allows for
+// using StructType in a similar way to Tensor or MemRef. We use `DialectType`
+// to demarcate the StructType as belonging to the Toy dialect.
+def Pirg_ParallelDataType :
+    DialectType<Pirg_Dialect, CPred<"$_self.isa<ParallelDataType>()">,
+                "Pirg parallel data type">;
+
 //===----------------------------------------------------------------------===//
 // Pirg Operations
 //===----------------------------------------------------------------------===//
