@@ -32,10 +32,11 @@ cmake --build . --target mlir-doc
 `rex2mlir` creates an MLIR AST for the following simple program and print out the AST.
 
 ```c
-void foo () {
-#pragma omp parallel num_threads(6)
-    for (i = 0; i < 10; i++) {
-        printf("This is a test.\n");
+void foo (float* x, float* y, float a, int n) {
+    int i;
+#pragma omp parallel for num_threads(6)
+    for (i = 0; i < n; i++) {
+        y[i] = y[i] + a * x[i];
     }
 }
 ```
@@ -49,42 +50,30 @@ The output should be:
 Set up MLIR environment....
 Prepare a dummy code location....
 Prepare base function parameters....
-Prepare base function name....
 Create a base function....
 Create the body of base function....
 Insert a SPMD region to the base function....
 Insert a for loop to the SPMD region....
-Insert a printf function call to the for loop....
 Create a module that contains multiple functions....
 Dump the MLIR AST....
 
 module  {
-  func @foo() {
+  func @axpy(%arg0: memref<f64>, %arg1: memref<f64>, %arg2: f64, %arg3: i32) {
+    %cst = constant "a"
+    %cst_0 = constant "shared"
+    %cst_1 = constant "implicit"
     %c6_i32 = constant 6 : i32
     pirg.spmd num_units(%c6_i32 : i32) {
       %c0 = constant 0 : index
-      %c10 = constant 10 : index
       %c1 = constant 1 : index
-      scf.for %arg0 = %c0 to %c10 step %c1 {
-        %cst = constant "This is a test.\0A"
-        %0 = call @printf(%cst) : (none) -> none
-      }
-    }
-  }
-}
-
-Convert PIRG dialect to OpenMP dialect....
-
-module  {
-  func @foo() {
-    %c6_i32 = constant 6 : i32
-    omp.parallel num_threads(%c6_i32 : i32) {
-      %c0 = constant 0 : index
-      %c10 = constant 10 : index
-      %c1 = constant 1 : index
-      scf.for %arg0 = %c0 to %c10 step %c1 {
-        %cst = constant "This is a test.\0A"
-        %0 = call @printf(%cst) : (none) -> none
+      pirg.workshare {
+        scf.for %arg4 = %c0 to %arg3 step %c1 {
+          %0 = memref.load %arg0[%arg4] : memref<f64>
+          %1 = memref.load %arg1[%arg4] : memref<f64>
+          %2 = mulf %arg2, %0 : f64
+          %3 = addf %2, %1 : f64
+          memref.store %3, %arg1[%arg4] : memref<f64>
+        }
       }
     }
   }
