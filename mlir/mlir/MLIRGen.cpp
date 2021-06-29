@@ -47,7 +47,22 @@ namespace {
 
 namespace pirg {
 
+std::map<SgNode*, std::pair<mlir::Value, SgInitializedName*>> symbol_table;
+
 } // namespace pirg
+
+
+SgInitializedName* get_sage_symbol(SgExpression* node) {
+
+    SgInitializedName* symbol = NULL;
+    SgVarRefExp* symbol_expression = isSgVarRefExp(node);
+    if (symbol_expression != NULL) {
+        symbol = symbol_expression->get_symbol()->get_declaration();
+    }
+
+    return symbol;
+}
+
 
 void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
 
@@ -100,15 +115,41 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 bool is_canonical = false;
                 is_canonical = SageInterface::isCanonicalForLoop(target, &for_index, &for_lower, &for_upper, &for_stride, NULL, &isIncremental);
                 ROSE_ASSERT(is_canonical == true);
-                int32_t lower_value = std::stoi(for_lower->unparseToString());
-                int32_t upper_value = std::stoi(for_upper->unparseToString());
-                int32_t stride_value = std::stoi(for_stride->unparseToString());
 
-                mlir::Value lower_bound = builder.create<mlir::ConstantIndexOp>(location, lower_value);
-                mlir::Value upper_bound = builder.create<mlir::ConstantIndexOp>(location, upper_value);
-                mlir::Value step = builder.create<mlir::ConstantIndexOp>(location, stride_value);
+                mlir::Value lower_bound = nullptr;
+                SgInitializedName* for_lower_symbol = get_sage_symbol(for_lower);
+                if (for_lower_symbol != NULL) {
+                    lower_bound = pirg::symbol_table.at(for_lower_symbol).first;
+                } else {
+                    if (symbol_table.count(for_lower) != 0) {
+                        lower_bound = symbol_table[for_lower].first;
+                    } else {
+                        lower_bound = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_lower->unparseToString()));
+                        pirg::symbol_table[for_lower] = std::make_pair(lower_bound, for_lower_symbol);
+                    }
+                }
+                mlir::Value upper_bound = nullptr;
+                SgInitializedName* for_upper_symbol = get_sage_symbol(for_upper);
+                if (for_upper_symbol != NULL) {
+                    upper_bound = pirg::symbol_table.at(for_upper_symbol).first;
+                } else {
+                    upper_bound = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_upper->unparseToString()));
+                }
 
-                mlir::pirg::WorkshareOp workshare_target = builder.create<mlir::pirg::WorkshareOp>(location, nullptr, lower_bound, upper_bound, step, nullptr, nullptr, collapse, mlir::ValueRange(), nullptr, mlir::ValueRange(), nullptr);
+                mlir::Value stride = nullptr;
+                SgInitializedName* for_stride_symbol = get_sage_symbol(for_stride);
+                if (for_stride_symbol != NULL) {
+                    stride = pirg::symbol_table.at(for_stride_symbol).first;
+                } else {
+                    if (symbol_table.count(for_stride_symbol) != 0) {
+                        stride = symbol_table.at(for_stride).first;
+                    } else {
+                        stride = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_stride->unparseToString()));
+                        pirg::symbol_table[for_stride] = std::make_pair(stride, for_stride_symbol);
+                    }
+                }
+
+                mlir::pirg::WorkshareOp workshare_target = builder.create<mlir::pirg::WorkshareOp>(location, nullptr, lower_bound, upper_bound, stride, nullptr, nullptr, collapse, mlir::ValueRange(), nullptr, mlir::ValueRange(), nullptr);
                 mlir::Region &workshare_body = workshare_target.getRegion();
                 builder.createBlock(&workshare_body);
 
@@ -170,15 +211,43 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 bool is_canonical = false;
                 is_canonical = SageInterface::isCanonicalForLoop(target, &for_index, &for_lower, &for_upper, &for_stride, NULL, &isIncremental);
                 ROSE_ASSERT(is_canonical == true);
-                int32_t lower_value = std::stoi(for_lower->unparseToString());
-                int32_t upper_value = std::stoi(for_upper->unparseToString());
-                int32_t stride_value = std::stoi(for_stride->unparseToString());
 
-                mlir::Value lower_bound = builder.create<mlir::ConstantIndexOp>(location, lower_value);
-                mlir::Value upper_bound = builder.create<mlir::ConstantIndexOp>(location, upper_value);
-                mlir::Value step = builder.create<mlir::ConstantIndexOp>(location, stride_value);
+                mlir::Value lower_bound = nullptr;
+                SgInitializedName* for_lower_symbol = get_sage_symbol(for_lower);
+                if (for_lower_symbol != NULL) {
+                    lower_bound = pirg::symbol_table.at(for_lower_symbol).first;
+                } else {
+                    if (symbol_table.count(for_lower) != 0) {
+                        lower_bound = symbol_table.at(for_lower).first;
+                    } else {
+                        lower_bound = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_lower->unparseToString()));
+                        pirg::symbol_table[for_lower] = std::make_pair(lower_bound, for_lower_symbol);
+                    }
+                }
+
+                mlir::Value upper_bound = nullptr;
+                SgInitializedName* for_upper_symbol = get_sage_symbol(for_upper);
+                if (for_upper_symbol != NULL) {
+                    upper_bound = pirg::symbol_table.at(for_upper_symbol).first;
+                } else {
+                    upper_bound = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_upper->unparseToString()));
+                }
+
+                mlir::Value stride = nullptr;
+                SgInitializedName* for_stride_symbol = get_sage_symbol(for_stride);
+                if (for_stride_symbol != NULL) {
+                    stride = pirg::symbol_table.at(for_stride_symbol).first;
+                } else {
+                    if (symbol_table.count(for_stride_symbol) != 0) {
+                        stride = symbol_table.at(for_stride).first;
+                    } else {
+                        stride = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_stride->unparseToString()));
+                        pirg::symbol_table[for_stride] = std::make_pair(stride, for_stride_symbol);
+                    }
+                }
+
                 mlir::ValueRange loop_value = {};
-                mlir::scf::ForOp loop = builder.create<mlir::scf::ForOp>(location, upper_bound, lower_bound, step, loop_value);
+                mlir::scf::ForOp loop = builder.create<mlir::scf::ForOp>(location, lower_bound, upper_bound, stride, loop_value);
                 mlir::Region &loop_body = loop.getLoopBody();
                 mlir::Block &loop_block = loop_body.front();
                 builder.setInsertionPointToStart(&loop_block);
@@ -236,25 +305,45 @@ InheritedAttribute PirgSageAST::evaluateInheritedAttribute(SgNode* node, Inherit
     switch (node->variantT()) {
         case V_SgFunctionDefinition:
             {
-                std::cout << "Add a function definition.\n";
                 SgFunctionDefinition* target = isSgFunctionDefinition(node);
+                llvm::SmallVector<mlir::Type, 4> arg_types;
+
+                SgInitializedNamePtrList function_parameters = target->get_declaration()->get_args();
+                SgInitializedNamePtrList::const_iterator iter;
+                for (iter = function_parameters.begin(); iter != function_parameters.end(); iter++) {
+                    mlir::Type type = nullptr;
+                    SgInitializedName* symbol = *iter;
+                    SgType* symbol_type = symbol->get_type();
+                    if (isSgPointerType(symbol_type)) {
+                        type = mlir::UnrankedMemRefType::get(builder.getI32Type(), 8);
+                    } else {
+                        type = builder.getI32Type();
+                    }
+                    arg_types.push_back(type);
+                    assert(pirg::symbol_table.count(symbol) == 0);
+                    pirg::symbol_table[symbol] = std::make_pair(nullptr, symbol);
+                }
 
                 mlir::Location location = builder.getUnknownLoc();
 
                 std::cout << "Prepare base function parameters...." << std::endl;
-                llvm::ArrayRef<std::unique_ptr<llvm::StringRef>> args;
-                llvm::SmallVector<mlir::Type, 4> arg_types(args.size(), builder.getNoneType());
                 auto func_type = builder.getFunctionType(arg_types, llvm::None);
-                llvm::ArrayRef<std::pair<mlir::Identifier, mlir::Attribute> > attrs = {};
 
                 std::cout << "Prepare base function name...." << std::endl;
                 llvm::StringRef func_name = std::string(target->get_declaration()->get_name().getString());
 
                 std::cout << "Create a base function...." << std::endl;
-                mlir::FuncOp func = mlir::FuncOp::create(location, func_name, func_type, attrs);
+                mlir::FuncOp func = mlir::FuncOp::create(location, func_name, func_type);
 
                 std::cout << "Create the body of base function...." << std::endl;
                 mlir::Block &entryBlock = *func.addEntryBlock();
+
+                for (iter = function_parameters.begin(); iter != function_parameters.end(); iter++) {
+                    int i = 0;
+                    SgInitializedName* symbol = *iter;
+                    pirg::symbol_table[symbol] = std::make_pair(entryBlock.getArgument(i), symbol);
+                    i++;
+                }
 
                 builder.setInsertionPointToStart(&entryBlock);
 
