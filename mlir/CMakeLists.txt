@@ -53,7 +53,7 @@ set(REX2MLIR_SOURCE_FILES
 
 add_executable(rex2mlir ${REX2MLIR_SOURCE_FILES})
 add_dependencies(rex2mlir PirgOpsIncGen)
-target_compile_options(rex2mlir PUBLIC -flarge-source-files)
+target_compile_options(rex2mlir PUBLIC -Wno-misleading-indentation)
 target_link_libraries(rex2mlir
   PRIVATE
     rose
