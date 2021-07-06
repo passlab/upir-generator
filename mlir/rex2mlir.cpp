@@ -21,7 +21,8 @@
 #include "mlir/InitAllPasses.h"
 #include "llvm/ADT/ScopedHashTable.h"
 
-#include "rose.h"
+//#include "rose.h"
+#include "data_analyzing.h"
 
 void dummy() {
 
@@ -138,7 +139,7 @@ int main(int argc, char **argv) {
   mlir::registerAsmPrinterCLOptions();
   mlir::registerMLIRContextCLOptions();
 
-  dummy();
+  //dummy();
 
   mlir::MLIRContext context;
   context.getOrLoadDialect<mlir::pirg::PirgDialect>();
@@ -148,6 +149,12 @@ int main(int argc, char **argv) {
 
   SgProject* project = frontend(argc, argv);
   assert(project);
+  std::map<SgVariableSymbol *, ParallelData *> parallel_data = analyze_parallel_data(isSgSourceFile(&(project->get_file(0))));
+  std::map<SgVariableSymbol *, ParallelData *>::iterator iter;
+  for (iter = parallel_data.begin(); iter != parallel_data.end(); iter++) {
+    iter->second->output();
+  }
+
   mlir::OwningModuleRef mlir_module = generate_mlir(context, project);
   mlir_module->dump();
 

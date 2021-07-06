@@ -29,6 +29,7 @@ include_directories(SYSTEM ${REX_INSTALL}/include/rose)
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${MLIR_INCLUDE_DIRS})
 include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${PROJECT_BINARY_DIR}/include)
 link_directories(${REX_INSTALL}/lib)
 link_directories(${LLVM_BUILD_LIBRARY_DIR})
@@ -49,6 +50,7 @@ set(REX2MLIR_SOURCE_FILES
     rex2mlir.cpp
     mlir/MLIRGen.cpp
     mlir/Dialect.cpp
+    analysis/data_analyzing.cpp
 )
 
 add_executable(rex2mlir ${REX2MLIR_SOURCE_FILES})
