@@ -62,15 +62,31 @@ void dummy() {
 
     builder.setInsertionPointToStart(&entryBlock);
 
+    mlir::Value var_i = builder.create<mlir::ConstantIntOp>(location, 0, 32);
     // parallel data
-    mlir::StringAttr data_symbol_attr = builder.getStringAttr(llvm::StringRef("a"));
-    mlir::Value data_symbol = builder.create<mlir::ConstantOp>(location, data_symbol_attr);
-    mlir::StringAttr sharing_type_attr = builder.getStringAttr(llvm::StringRef("shared"));
-    mlir::Value sharing_type = builder.create<mlir::ConstantOp>(location, sharing_type_attr);
-    mlir::StringAttr sharing_visibility_attr = builder.getStringAttr(llvm::StringRef("implicit"));
-    mlir::Value sharing_visibility = builder.create<mlir::ConstantOp>(location, sharing_visibility_attr);
-    llvm::ArrayRef<mlir::Value> parallel_data = {data_symbol, sharing_type, sharing_visibility};
-    mlir::ValueRange parallel_data_range = mlir::ValueRange(parallel_data);
+    // x
+    llvm::ArrayRef<llvm::StringRef> parallel_data_string_x = {"x", "shared", "implicit", "", "", "read-only"};
+    mlir::ArrayAttr parallel_data_x = builder.getStrArrayAttr(parallel_data_string_x);
+    mlir::Value parallel_data_value_x = builder.create<mlir::pirg::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data_x, entryBlock.getArgument(0));
+    // y
+    llvm::ArrayRef<llvm::StringRef> parallel_data_string_y = {"y", "shared", "implicit", "", "", "read-write"};
+    mlir::ArrayAttr parallel_data_y = builder.getStrArrayAttr(parallel_data_string_y);
+    mlir::Value parallel_data_value_y = builder.create<mlir::pirg::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data_y, entryBlock.getArgument(1));
+    // a
+    llvm::ArrayRef<llvm::StringRef> parallel_data_string_a = {"a", "shared", "implicit", "", "", "read-only"};
+    mlir::ArrayAttr parallel_data_a = builder.getStrArrayAttr(parallel_data_string_a);
+    mlir::Value parallel_data_value_a = builder.create<mlir::pirg::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data_a, entryBlock.getArgument(2));
+    // n
+    llvm::ArrayRef<llvm::StringRef> parallel_data_string_n = {"n", "shared", "implicit", "", "", "read-only"};
+    mlir::ArrayAttr parallel_data_n = builder.getStrArrayAttr(parallel_data_string_n);
+    mlir::Value parallel_data_value_n = builder.create<mlir::pirg::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data_n, entryBlock.getArgument(3));
+    // i
+    llvm::ArrayRef<llvm::StringRef> parallel_data_string_i = {"i", "private", "implicit", "", "", "read-write"};
+    mlir::ArrayAttr parallel_data_i = builder.getStrArrayAttr(parallel_data_string_i);
+    mlir::Value parallel_data_value_i = builder.create<mlir::pirg::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data_i, var_i);
+
+    llvm::ArrayRef<mlir::Value> parallel_data_values = {parallel_data_value_x, parallel_data_value_y, parallel_data_value_a, parallel_data_value_n, parallel_data_value_i};
+    mlir::ValueRange parallel_data_range = mlir::ValueRange(parallel_data_values);
 
     std::cout << "Insert a SPMD region to the base function...." << std::endl;
     mlir::Value num_units = builder.create<mlir::ConstantIntOp>(location, 6, 32);
@@ -139,7 +155,7 @@ int main(int argc, char **argv) {
   mlir::registerAsmPrinterCLOptions();
   mlir::registerMLIRContextCLOptions();
 
-  //dummy();
+  dummy();
 
   mlir::MLIRContext context;
   context.getOrLoadDialect<mlir::pirg::PirgDialect>();

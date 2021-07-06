@@ -25,6 +25,19 @@ static void printSpmdOp(mlir::OpAsmPrinter &printer, mlir::pirg::SpmdOp op) {
   if (auto threads = op.num_units())
     printer << " num_units(" << threads << " : " << threads.getType() << ")";
 
+  mlir::OperandRange data = op.data();
+  if (data.size()) {
+      printer << " data(";
+      unsigned int i;
+      for (i = 0; i < data.size(); i++) {
+        if (i != 0) {
+            printer << ", ";
+        }
+        printer << data[i];
+      }
+      printer << ")";
+  }
+
   printer.printRegion(op.getRegion());
 }
 
@@ -72,6 +85,30 @@ static void printBarrierOp(mlir::OpAsmPrinter &printer, mlir::pirg::BarrierOp op
   }
 }
 
+static void printParallelDataInfoOp(mlir::OpAsmPrinter &printer, mlir::pirg::ParallelDataInfoOp op) {
+  printer << "pirg.parallel_data_info (";
+
+  mlir::ArrayAttr array_attr = op.data();
+  llvm::ArrayRef<mlir::Attribute> string_attr_list = array_attr.getValue();
+  llvm::ArrayRef<mlir::Attribute>::iterator iter;
+  for (iter = string_attr_list.begin(); iter != string_attr_list.end(); iter++) {
+      if (iter != string_attr_list.begin()) {
+        printer << ", ";
+      }
+      const mlir::StringAttr* string_attr = static_cast<const mlir::StringAttr*>(iter);
+      llvm::StringRef s = string_attr->getValue();
+      if (s == "") {
+          s = "n/a";
+      }
+      printer << s;
+  }
+  if (auto ssa_id = op.value()) {
+      printer << " : " << ssa_id;
+  }
+
+  printer << ")";
+}
+
 //===----------------------------------------------------------------------===//
 // Toy Types
 //===----------------------------------------------------------------------===//
@@ -85,10 +122,10 @@ struct ParallelDataTypeStorage : public mlir::TypeStorage {
   /// instance. This type will be used when uniquing an instance of the type
   /// storage. For our struct type, we will unique each instance structurally on
   /// the elements that it contains.
-  using KeyTy = llvm::ArrayRef<mlir::Type>;
+  using KeyTy = llvm::ArrayRef<mlir::StringAttr>;
 
   /// A constructor for the type storage instance.
-  ParallelDataTypeStorage(llvm::ArrayRef<mlir::Type> elementTypes)
+  ParallelDataTypeStorage(llvm::ArrayRef<mlir::StringAttr> elementTypes)
       : elementTypes(elementTypes) {}
 
   /// Define the comparison function for the key type with the current storage
@@ -109,7 +146,7 @@ struct ParallelDataTypeStorage : public mlir::TypeStorage {
   /// itself.
   /// Note: This method isn't necessary because KeyTy can be directly
   /// constructed with the given parameters.
-  static KeyTy getKey(llvm::ArrayRef<mlir::Type> elementTypes) {
+  static KeyTy getKey(llvm::ArrayRef<mlir::StringAttr> elementTypes) {
     return KeyTy(elementTypes);
   }
 
@@ -120,7 +157,7 @@ struct ParallelDataTypeStorage : public mlir::TypeStorage {
   static ParallelDataTypeStorage *construct(mlir::TypeStorageAllocator &allocator,
                                       const KeyTy &key) {
     // Copy the elements from the provided `KeyTy` into the allocator.
-    llvm::ArrayRef<mlir::Type> elementTypes = allocator.copyInto(key);
+    llvm::ArrayRef<mlir::StringAttr> elementTypes = allocator.copyInto(key);
 
     // Allocate the storage instance and construct it.
     return new (allocator.allocate<ParallelDataTypeStorage>())
@@ -128,7 +165,7 @@ struct ParallelDataTypeStorage : public mlir::TypeStorage {
   }
 
   /// The following field contains the element types of the struct.
-  llvm::ArrayRef<mlir::Type> elementTypes;
+  llvm::ArrayRef<mlir::StringAttr> elementTypes;
 };
 } // end namespace detail
 } // end namespace toy
@@ -136,7 +173,7 @@ struct ParallelDataTypeStorage : public mlir::TypeStorage {
 
 /// Create an instance of a `StructType` with the given element types. There
 /// *must* be at least one element type.
-ParallelDataType ParallelDataType::get(llvm::ArrayRef<mlir::Type> elementTypes) {
+ParallelDataType ParallelDataType::get(llvm::ArrayRef<mlir::StringAttr> elementTypes) {
   assert(!elementTypes.empty() && "expected at least 1 element type");
 
   // Call into a helper 'get' method in 'TypeBase' to get a uniqued instance
@@ -147,7 +184,7 @@ ParallelDataType ParallelDataType::get(llvm::ArrayRef<mlir::Type> elementTypes) 
 }
 
 /// Returns the element types of this struct type.
-llvm::ArrayRef<mlir::Type> ParallelDataType::getElementTypes() {
+llvm::ArrayRef<mlir::StringAttr> ParallelDataType::getElementTypes() {
   // 'getImpl' returns a pointer to the internal storage instance.
   return getImpl()->elementTypes;
 }

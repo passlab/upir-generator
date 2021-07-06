@@ -154,3 +154,17 @@ def BarrierOp : Pirg_Op<"barrier", [AttrSizedOperandSegments]> {
 
 }
 
+def ParallelDataInfoOp : Pirg_Op<"parallel_data_info", [NoSideEffect]> {
+  let summary = "parallel data info";
+  let description = [{
+    Create a parallel data info for parallel units.
+  }];
+
+  let arguments = (ins ArrayAttr:$data,
+             Optional<AnyType>:$value);
+  let results = (outs AnyType);
+
+  let printer = [{ return ::printParallelDataInfoOp(p, *this); }];
+
+}
+

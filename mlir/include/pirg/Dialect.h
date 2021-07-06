@@ -48,10 +48,10 @@ public:
 
   /// Create an instance of a `StructType` with the given element types. There
   /// *must* be atleast one element type.
-  static ParallelDataType get(llvm::ArrayRef<mlir::Type> elementTypes);
+  static ParallelDataType get(llvm::ArrayRef<mlir::StringAttr> elementTypes);
 
   /// Returns the element types of this struct type.
-  llvm::ArrayRef<mlir::Type> getElementTypes();
+  llvm::ArrayRef<mlir::StringAttr> getElementTypes();
 
   /// Returns the number of element type held by this struct.
   size_t getNumElementTypes() { return getElementTypes().size(); }
