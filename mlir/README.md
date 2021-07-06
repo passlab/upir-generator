@@ -32,7 +32,7 @@ cmake --build . --target mlir-doc
 `rex2mlir` creates an MLIR AST for the following simple program and print out the AST.
 
 ```c
-void foo (float* x, float* y, float a, int n) {
+void axpy (float* x, float* y, float a, int n) {
     int i;
 #pragma omp parallel for num_threads(6)
     for (i = 0; i < n; i++) {
