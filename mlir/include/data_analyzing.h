@@ -11,6 +11,7 @@ class ParallelData {
 
     public:
         ParallelData(SgVariableSymbol* __symbol, std::string __sharing_property = "", std::string __sharing_visibility = "", std::string __mapping_property = "", std::string __mapping_visibility = "", std::string __data_access = "") : symbol(__symbol), sharing_property(__sharing_property), sharing_visibility(__sharing_visibility), mapping_property(__mapping_property), mapping_visibility(__mapping_visibility), data_access(__data_access) {};
+        SgVariableSymbol* get_symbol() { return symbol; };
         void set_sharing_property(std::string __sharing_property) { sharing_property = __sharing_property; };
         std::string get_sharing_property() { return sharing_property; };
         void set_sharing_visibility(std::string __sharing_visibility) { sharing_visibility = __sharing_visibility; };

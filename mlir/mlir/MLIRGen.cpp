@@ -25,10 +25,9 @@
 #include "mlir/InitAllDialects.h"
 #include "mlir/InitAllPasses.h"
 
-#include "rose.h"
+#include "data_analyzing.h"
 
 using namespace mlir::pirg;
-using namespace pirg;
 
 using llvm::ArrayRef;
 using llvm::cast;
@@ -48,6 +47,7 @@ namespace {
 namespace pirg {
 
 std::map<SgNode*, std::pair<mlir::Value, SgInitializedName*>> symbol_table;
+SgProject* g_project = NULL;
 
 } // namespace pirg
 
@@ -72,6 +72,27 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
             {
                 SgOmpParallelStatement* target = isSgOmpParallelStatement(node);
                 std::cout << "Insert a SPMD region...." << std::endl;
+
+                std::map<SgVariableSymbol *, ParallelData *> parallel_data = analyze_parallel_data(isSgSourceFile(&(pirg::g_project->get_file(0))));
+                std::map<SgVariableSymbol *, ParallelData *>::iterator data_iter;
+                std::vector<mlir::Value> value_list;
+                for (data_iter = parallel_data.begin(); data_iter != parallel_data.end(); data_iter++) {
+                  ParallelData * iter = data_iter->second;
+                  std::string symbol = iter->get_symbol()->get_name();
+                  std::string sharing_property = iter->get_sharing_property();
+                  std::string sharing_visibility = iter->get_sharing_visibility();
+                  std::string mapping_property = iter->get_mapping_property();
+                  std::string mapping_visibility = iter->get_mapping_visibility();
+                  std::string data_access = iter->get_data_access();
+                  llvm::ArrayRef<llvm::StringRef> parallel_data_string = {symbol, sharing_property, sharing_visibility, mapping_property, mapping_visibility, data_access};
+                  mlir::ArrayAttr parallel_data = builder.getStrArrayAttr(parallel_data_string);
+                  mlir::Value parallel_data_value = builder.create<mlir::pirg::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data, nullptr);
+                  value_list.push_back(parallel_data_value);
+
+                }
+                llvm::ArrayRef<mlir::Value> parallel_data_values = llvm::ArrayRef<mlir::Value>(value_list);
+                mlir::ValueRange parallel_data_range = mlir::ValueRange(parallel_data_values);
+
                 mlir::Value num_threads = nullptr;
                 if (OmpSupport::hasClause(target, V_SgOmpNumThreadsClause)) {
                     Rose_STL_Container<SgOmpClause*> num_threads_clauses = OmpSupport::getClause(target, V_SgOmpNumThreadsClause);
@@ -80,7 +101,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                     int32_t num_thread_value = std::stoi(num_threads_string);
                     num_threads = builder.create<mlir::ConstantIntOp>(location, num_thread_value, 32);
                 }
-                mlir::pirg::SpmdOp spmd = builder.create<mlir::pirg::SpmdOp>(location, num_threads, nullptr, mlir::ValueRange(), mlir::ValueRange(), nullptr);
+                mlir::pirg::SpmdOp spmd = builder.create<mlir::pirg::SpmdOp>(location, num_threads, nullptr, mlir::ValueRange(), parallel_data_range, nullptr);
                 mlir::Region &spmd_body = spmd.getRegion();
                 builder.createBlock(&spmd_body);
 
@@ -95,8 +116,16 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
             }
         case V_SgOmpForStatement:
             {
-                SgOmpForStatement* omp_target = isSgOmpForStatement(node);
+                SgOmpForStatement* omp_for = isSgOmpForStatement(node);
+                SgOmpDoStatement* omp_do = isSgOmpDoStatement(node);
+                SgOmpClauseBodyStatement* omp_target = NULL;
+                if (omp_for != NULL) {
+                    omp_target = omp_for;
+                } else {
+                    omp_target = omp_do;
+                }
                 SgForStatement* target = isSgForStatement(omp_target->get_body());
+                assert(target != NULL);
                 std::cout << "Insert a worksharing region...." << std::endl;
 
                 mlir::Value collapse = nullptr;
@@ -113,6 +142,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 SgExpression* for_stride = NULL;
                 bool isIncremental = true;
                 bool is_canonical = false;
+
                 is_canonical = SageInterface::isCanonicalForLoop(target, &for_index, &for_lower, &for_upper, &for_stride, NULL, &isIncremental);
                 ROSE_ASSERT(is_canonical == true);
 
@@ -121,8 +151,8 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 if (for_lower_symbol != NULL) {
                     lower_bound = pirg::symbol_table.at(for_lower_symbol).first;
                 } else {
-                    if (symbol_table.count(for_lower) != 0) {
-                        lower_bound = symbol_table[for_lower].first;
+                    if (pirg::symbol_table.count(for_lower) != 0) {
+                        lower_bound = pirg::symbol_table[for_lower].first;
                     } else {
                         lower_bound = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_lower->unparseToString()));
                         pirg::symbol_table[for_lower] = std::make_pair(lower_bound, for_lower_symbol);
@@ -141,8 +171,8 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 if (for_stride_symbol != NULL) {
                     stride = pirg::symbol_table.at(for_stride_symbol).first;
                 } else {
-                    if (symbol_table.count(for_stride_symbol) != 0) {
-                        stride = symbol_table.at(for_stride).first;
+                    if (pirg::symbol_table.count(for_stride_symbol) != 0) {
+                        stride = pirg::symbol_table.at(for_stride).first;
                     } else {
                         stride = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_stride->unparseToString()));
                         pirg::symbol_table[for_stride] = std::make_pair(stride, for_stride_symbol);
@@ -217,8 +247,8 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 if (for_lower_symbol != NULL) {
                     lower_bound = pirg::symbol_table.at(for_lower_symbol).first;
                 } else {
-                    if (symbol_table.count(for_lower) != 0) {
-                        lower_bound = symbol_table.at(for_lower).first;
+                    if (pirg::symbol_table.count(for_lower) != 0) {
+                        lower_bound = pirg::symbol_table.at(for_lower).first;
                     } else {
                         lower_bound = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_lower->unparseToString()));
                         pirg::symbol_table[for_lower] = std::make_pair(lower_bound, for_lower_symbol);
@@ -238,8 +268,8 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 if (for_stride_symbol != NULL) {
                     stride = pirg::symbol_table.at(for_stride_symbol).first;
                 } else {
-                    if (symbol_table.count(for_stride_symbol) != 0) {
-                        stride = symbol_table.at(for_stride).first;
+                    if (pirg::symbol_table.count(for_stride_symbol) != 0) {
+                        stride = pirg::symbol_table.at(for_stride).first;
                     } else {
                         stride = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_stride->unparseToString()));
                         pirg::symbol_table[for_stride] = std::make_pair(stride, for_stride_symbol);
@@ -369,6 +399,7 @@ InheritedAttribute PirgSageAST::evaluateInheritedAttribute(SgNode* node, Inherit
 mlir::ModuleOp generate_mlir(mlir::MLIRContext& context, SgProject* project) {
 
     ROSE_ASSERT(project != NULL);
+    pirg::g_project = project;
 
     mlir::OpBuilder builder = mlir::OpBuilder(&context);
     mlir::ModuleOp project_module = mlir::ModuleOp::create(builder.getUnknownLoc());
