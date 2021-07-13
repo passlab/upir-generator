@@ -68,6 +68,51 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
 
     mlir::Location location = builder.getUnknownLoc();
     switch (node->variantT()) {
+        case V_SgVariableDeclaration:
+            {
+                SgVariableDeclaration* target = isSgVariableDeclaration(node);
+                SgInitializedNamePtrList variable_list = target->get_variables();
+                SgInitializedNamePtrList::const_iterator iter;
+                for (iter = variable_list.begin(); iter != variable_list.end(); iter++) {
+                    mlir::Type type = nullptr;
+                    SgInitializedName* symbol = *iter;
+                    SgType* symbol_type = symbol->get_type();
+                    if (isSgPointerType(symbol_type)) {
+                        type = mlir::UnrankedMemRefType::get(builder.getI32Type(), 8);
+                    } else {
+                        type = builder.getI32Type();
+                    }
+                    assert(pirg::symbol_table.count(symbol) == 0);
+                    pirg::symbol_table[symbol] = std::make_pair(nullptr, symbol);
+                }
+                break;
+            }
+        case V_SgExprStatement:
+            {
+                SgExprStatement* target = isSgExprStatement(node);
+                assert(target != NULL);
+                SgAssignOp* assign_op = isSgAssignOp(target->get_expression());
+                if (assign_op == NULL) {
+                    break;
+                }
+                try {
+                    std::stoi(assign_op->get_rhs_operand()->unparseToString());
+                }
+                catch (...) {
+                    break;
+                }
+
+                SgInitializedName *init_var = get_sage_symbol(assign_op->get_lhs_operand());
+
+                ROSE_ASSERT(init_var != NULL);
+                SgVariableSymbol *symbol = isSgVariableSymbol(init_var->search_for_symbol_from_symbol_table());
+                assert(symbol != NULL);
+                SgExpression* assigned_value = assign_op->get_rhs_operand();
+                assert(pirg::symbol_table.count(init_var) != 0);
+                mlir::Value value = builder.create<mlir::ConstantIndexOp>(location, std::stoi(assigned_value->unparseToString()));
+                pirg::symbol_table[init_var] = std::make_pair(value, init_var);
+                break;
+            }
         case V_SgOmpParallelStatement:
             {
                 SgOmpParallelStatement* target = isSgOmpParallelStatement(node);
@@ -115,6 +160,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 break;
             }
         case V_SgOmpForStatement:
+        case V_SgOmpDoStatement:
             {
                 SgOmpForStatement* omp_for = isSgOmpForStatement(node);
                 SgOmpDoStatement* omp_do = isSgOmpDoStatement(node);
@@ -124,8 +170,9 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 } else {
                     omp_target = omp_do;
                 }
-                SgForStatement* target = isSgForStatement(omp_target->get_body());
-                assert(target != NULL);
+                assert(omp_target != NULL);
+                SgForStatement* for_loop = isSgForStatement(omp_target->get_body());
+                SgFortranDo* do_loop = isSgFortranDo(omp_target->get_body());
                 std::cout << "Insert a worksharing region...." << std::endl;
 
                 mlir::Value collapse = nullptr;
@@ -143,7 +190,12 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 bool isIncremental = true;
                 bool is_canonical = false;
 
-                is_canonical = SageInterface::isCanonicalForLoop(target, &for_index, &for_lower, &for_upper, &for_stride, NULL, &isIncremental);
+                if (for_loop != NULL) {
+                    is_canonical = SageInterface::isCanonicalForLoop(for_loop, &for_index, &for_lower, &for_upper, &for_stride, NULL, &isIncremental);
+                } else {
+                    SageInterface::doLoopNormalization(do_loop);
+                    is_canonical = SageInterface::isCanonicalDoLoop(do_loop, &for_index, &for_lower, &for_upper, &for_stride, NULL, &isIncremental, NULL);
+                }
                 ROSE_ASSERT(is_canonical == true);
 
                 mlir::Value lower_bound = nullptr;
@@ -162,6 +214,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 SgInitializedName* for_upper_symbol = get_sage_symbol(for_upper);
                 if (for_upper_symbol != NULL) {
                     upper_bound = pirg::symbol_table.at(for_upper_symbol).first;
+                    assert(upper_bound != nullptr);
                 } else {
                     upper_bound = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_upper->unparseToString()));
                 }
@@ -229,8 +282,16 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 break;
             }
         case V_SgForStatement:
+        case V_SgFortranDo:
             {
-                SgForStatement* target = isSgForStatement(node);
+                SgForStatement* for_loop = isSgForStatement(node);
+                SgFortranDo* do_loop = isSgFortranDo(node);
+                SgStatement* for_body = NULL;
+                if (for_loop != NULL) {
+                    for_body = for_loop->get_loop_body();
+                } else {
+                    for_body = do_loop->get_body();
+                }
                 std::cout << "Insert a for loop...." << std::endl;
 
                 SgInitializedName* for_index = NULL;
@@ -239,7 +300,12 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 SgExpression* for_stride = NULL;
                 bool isIncremental = true;
                 bool is_canonical = false;
-                is_canonical = SageInterface::isCanonicalForLoop(target, &for_index, &for_lower, &for_upper, &for_stride, NULL, &isIncremental);
+                if (for_loop != NULL) {
+                    is_canonical = SageInterface::isCanonicalForLoop(for_loop, &for_index, &for_lower, &for_upper, &for_stride, NULL, &isIncremental);
+                } else {
+                    SageInterface::doLoopNormalization(do_loop);
+                    is_canonical = SageInterface::isCanonicalDoLoop(do_loop, &for_index, &for_lower, &for_upper, &for_stride, NULL, &isIncremental, NULL);
+                }
                 ROSE_ASSERT(is_canonical == true);
 
                 mlir::Value lower_bound = nullptr;
@@ -282,7 +348,6 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 mlir::Block &loop_block = loop_body.front();
                 builder.setInsertionPointToStart(&loop_block);
 
-                SgStatement* for_body = target->get_loop_body();
                 if (isSgBasicBlock(for_body)) {
                     convert_basic_block(builder, isSgBasicBlock(for_body));
                 } else {
