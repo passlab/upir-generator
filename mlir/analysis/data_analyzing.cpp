@@ -1,5 +1,7 @@
 #include "data_analyzing.h"
 
+extern SgInitializedName *get_sage_symbol(SgExpression *);
+
 std::map<SgVariableSymbol *, ParallelData *> parallel_data;
 
 // Patch up private variables for a single OpenMP For or DO loop
@@ -601,20 +603,20 @@ int collectImplicitMappingVariables(SgFile *file) {
         }
       } else {
         OmpSupport::addClauseVariable(init_var, target, V_SgOmpSharedClause);
-          if (parallel_data.count(data_symbol) == 0) {
-            ParallelData *data = new ParallelData(data_symbol);
-            data->set_sharing_property("shared");
-            data->set_sharing_visibility("implicit");
-            data->set_data_access(data_access);
-            parallel_data[data_symbol] = data;
-            std::cout << "Got an implicit shared var to table: "
-                      << init_var->get_name() << "\n";
-            continue;
-          } else {
-            if (data_access == "read-write") {
-              parallel_data[data_symbol]->set_data_access(data_access);
-            }
+        if (parallel_data.count(data_symbol) == 0) {
+          ParallelData *data = new ParallelData(data_symbol);
+          data->set_sharing_property("shared");
+          data->set_sharing_visibility("implicit");
+          data->set_data_access(data_access);
+          parallel_data[data_symbol] = data;
+          std::cout << "Got an implicit shared var to table: "
+                    << init_var->get_name() << "\n";
+          continue;
+        } else {
+          if (data_access == "read-write") {
+            parallel_data[data_symbol]->set_data_access(data_access);
           }
+        }
       }
       result++;
     } // end for each variable reference
@@ -754,7 +756,8 @@ int collectExplicitMappingVariables(SgFile *file) {
   return result;
 } // end patchUpExplicitMappingVariables()
 
-std::map<SgVariableSymbol *, ParallelData *> analyze_parallel_data(SgSourceFile *file) {
+std::map<SgVariableSymbol *, ParallelData *>
+analyze_parallel_data(SgSourceFile *file) {
 
   collectExplicitMappingVariables(file);
 
@@ -766,3 +769,104 @@ std::map<SgVariableSymbol *, ParallelData *> analyze_parallel_data(SgSourceFile 
 
   return parallel_data;
 }
+
+std::string check_data_usage(SgInitializedName *variable,
+                             SgFunctionDeclaration *function) {
+
+  std::string data_access = "";
+  bool write = false;
+  bool read = false;
+  assert(function != NULL);
+  // Find all variable references in the given function definition
+  Rose_STL_Container<SgNode *> ref_list =
+      NodeQuery::querySubTree(function, V_SgVarRefExp);
+  Rose_STL_Container<SgNode *>::iterator var_iter = ref_list.begin();
+  for (var_iter = ref_list.begin(); var_iter != ref_list.end(); var_iter++) {
+    SgVarRefExp *var_ref = isSgVarRefExp(*var_iter);
+
+    SgNode *var_ref_parent = var_ref->get_parent();
+    SgNode *var_ref_child = var_ref;
+    while (isSgAssignOp(var_ref_parent) == NULL && var_ref_parent != NULL) {
+      var_ref_child = var_ref_parent;
+      var_ref_parent = var_ref_parent->get_parent();
+    }
+
+    ROSE_ASSERT(var_ref->get_symbol() != NULL);
+    SgInitializedName *init_var = var_ref->get_symbol()->get_declaration();
+    ROSE_ASSERT(init_var != NULL);
+    if (init_var != variable) {
+      continue;
+    }
+    SgScopeStatement *var_scope = init_var->get_scope();
+    ROSE_ASSERT(var_scope != NULL);
+
+    // Skip variables which are class/structure members: part of another
+    // variable
+    if (isSgClassDefinition(init_var->get_scope()))
+      continue;
+
+    SgVariableSymbol *data_symbol =
+        isSgVariableSymbol(init_var->search_for_symbol_from_symbol_table());
+    assert(data_symbol != NULL);
+
+    if (isSgAssignOp(var_ref_parent) &&
+        isSgAssignOp(var_ref_parent)->get_lhs_operand() == var_ref_child) {
+      std::cout << "Got a writing L value: "
+                << var_ref->get_symbol()->get_name() << "\n";
+      write = true;
+    } else {
+      read = true;
+    }
+  } // end for each variable reference
+
+  if (read == true && write == false) {
+    data_access = "read-only";
+  } else if (read == false && write == true) {
+    data_access = "write-only";
+  } else {
+    data_access = "read-write";
+  }
+  return data_access;
+}
+
+std::map<SgVariableSymbol *, ParallelData *>
+analyze_cuda_parallel_data(SgCudaKernelCallExp *cuda_kernel) {
+
+  std::map<SgVariableSymbol *, ParallelData *> cuda_parallel_data;
+
+  SgGlobal *global_scope = SageInterface::getGlobalScope(cuda_kernel);
+  SgExpression *func_name = cuda_kernel->get_function();
+  std::string func_name_string = func_name->unparseToString();
+  SgExpressionPtrList &func_parameters =
+      cuda_kernel->get_args()->get_expressions();
+  SgFunctionSymbol *func_symbol =
+      global_scope->lookup_function_symbol(func_name_string);
+  assert(func_symbol != NULL);
+
+  SgFunctionDeclaration *original_func = isSgFunctionDeclaration(
+      func_symbol->get_declaration()->get_definingDeclaration());
+  SgInitializedNamePtrList &original_func_parameters =
+      original_func->get_args();
+  int i = 0;
+  SgExpressionPtrList::const_iterator iter;
+  for (iter = func_parameters.begin(); iter != func_parameters.end(); iter++) {
+    SgInitializedName *symbol = get_sage_symbol(*iter);
+    assert(symbol != NULL);
+
+    SgVariableSymbol *data_symbol =
+        isSgVariableSymbol(symbol->search_for_symbol_from_symbol_table());
+    assert(data_symbol != NULL);
+    ParallelData *data = new ParallelData(data_symbol);
+    data->set_sharing_property("shared");
+    data->set_sharing_visibility("implicit");
+    data->set_mapping_property("tofrom");
+    data->set_mapping_visibility("implicit");
+    data->set_data_access(
+        check_data_usage(original_func_parameters.at(i), original_func));
+    cuda_parallel_data[data_symbol] = data;
+    std::cout << "Got a CUDA var to table: " << symbol->get_name() << "\n";
+    i++;
+  }
+  return cuda_parallel_data;
+}
+

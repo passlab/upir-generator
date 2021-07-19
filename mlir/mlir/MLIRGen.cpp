@@ -100,7 +100,7 @@ void convert_op(mlir::OpBuilder& builder, SgExpression* node) {
                     num_blocks = pirg::symbol_table.at(num_blocks_expression).first;
                     assert(num_blocks != nullptr);
                 } else {
-                    num_blocks = builder.create<mlir::ConstantIndexOp>(location, std::stoi(num_blocks_expression->unparseToString()));
+                    num_blocks = builder.create<mlir::ConstantIntOp>(location, std::stoi(num_blocks_expression->unparseToString()), 32);
                 }
 
                 mlir::Value num_threads_per_block = nullptr;
@@ -110,11 +110,34 @@ void convert_op(mlir::OpBuilder& builder, SgExpression* node) {
                     num_threads_per_block = pirg::symbol_table.at(num_threads_per_block_expression).first;
                     assert(num_threads_per_block != nullptr);
                 } else {
-                    num_threads_per_block = builder.create<mlir::ConstantIndexOp>(location, std::stoi(num_threads_per_block_expression->unparseToString()));
+                    num_threads_per_block = builder.create<mlir::ConstantIntOp>(location, std::stoi(num_threads_per_block_expression->unparseToString()), 32);
                 }
 
-                // TODO: determine the usage of parallel data in the CUDA kernel
+                SgExpressionPtrList& func_parameters = cuda_kernel->get_args()->get_expressions();
+                std::map<SgVariableSymbol *, ParallelData *> parallel_data = analyze_cuda_parallel_data(cuda_kernel);
+                std::map<SgVariableSymbol *, ParallelData *>::iterator data_iter;
                 std::vector<mlir::Value> value_list;
+                int i = 0;
+                for (data_iter = parallel_data.begin(); data_iter != parallel_data.end(); data_iter++) {
+                  ParallelData * iter = data_iter->second;
+                  std::string symbol = iter->get_symbol()->get_name();
+                  std::string sharing_property = iter->get_sharing_property();
+                  std::string sharing_visibility = iter->get_sharing_visibility();
+                  std::string mapping_property = iter->get_mapping_property();
+                  std::string mapping_visibility = iter->get_mapping_visibility();
+                  std::string data_access = iter->get_data_access();
+                  llvm::ArrayRef<llvm::StringRef> parallel_data_string = {symbol, sharing_property, sharing_visibility, mapping_property, mapping_visibility, data_access};
+                  mlir::ArrayAttr parallel_data = builder.getStrArrayAttr(parallel_data_string);
+                  SgInitializedName *sage_symbol = get_sage_symbol(func_parameters.at(i));
+                  i++;
+                  mlir::Value symbol_value = nullptr;
+                  if (sage_symbol != NULL) {
+                      symbol_value = pirg::symbol_table[sage_symbol].first;
+                  }
+                  mlir::Value parallel_data_value = builder.create<mlir::pirg::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data, symbol_value);
+                  value_list.push_back(parallel_data_value);
+
+                }
                 llvm::ArrayRef<mlir::Value> parallel_data_values = llvm::ArrayRef<mlir::Value>(value_list);
                 mlir::ValueRange parallel_data_range = mlir::ValueRange(parallel_data_values);
 
@@ -128,7 +151,6 @@ void convert_op(mlir::OpBuilder& builder, SgExpression* node) {
 
                 SgExpression* func_name = cuda_kernel->get_function();
                 std::string func_name_string = func_name->unparseToString();
-                SgExpressionPtrList& func_parameters = cuda_kernel->get_args()->get_expressions();
                 SgFunctionSymbol* func_symbol = global_scope->lookup_function_symbol(func_name_string);
                 assert(func_symbol != NULL);
 

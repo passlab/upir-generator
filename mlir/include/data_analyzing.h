@@ -34,3 +34,4 @@ class ParallelData {
 };
 
 std::map<SgVariableSymbol *, ParallelData *> analyze_parallel_data(SgSourceFile*);
+std::map<SgVariableSymbol *, ParallelData *> analyze_cuda_parallel_data(SgCudaKernelCallExp*);
