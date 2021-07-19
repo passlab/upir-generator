@@ -103,6 +103,7 @@ def TaskOp : Pirg_Op<"task", [AttrSizedOperandSegments]> {
              OptionalAttr<StrAttr>:$device,
              Optional<AnyType>:$condition,
              Variadic<AnyType>:$depend,
+             Variadic<AnyType>:$data,
              Optional<AnyType>:$cost);
 
   let builders = [

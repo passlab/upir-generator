@@ -59,6 +59,19 @@ static void printTaskOp(mlir::OpAsmPrinter &printer, mlir::pirg::TaskOp op) {
     printer << ")";
   }
 
+  mlir::OperandRange data = op.data();
+  if (data.size()) {
+      printer << " data(";
+      unsigned int i;
+      for (i = 0; i < data.size(); i++) {
+        if (i != 0) {
+            printer << ", ";
+        }
+        printer << data[i];
+      }
+      printer << ")";
+  }
+
   printer.printRegion(op.getRegion());
 }
 

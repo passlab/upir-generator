@@ -141,6 +141,11 @@ void convert_op(mlir::OpBuilder& builder, SgExpression* node) {
                 llvm::ArrayRef<mlir::Value> parallel_data_values = llvm::ArrayRef<mlir::Value>(value_list);
                 mlir::ValueRange parallel_data_range = mlir::ValueRange(parallel_data_values);
 
+                mlir::StringAttr device = builder.getStringAttr(llvm::StringRef("nvptx"));
+                mlir::pirg::TaskOp task_target = builder.create<mlir::pirg::TaskOp>(location, nullptr, device, nullptr, mlir::ValueRange(), parallel_data_range, nullptr);
+                mlir::Region &task_body = task_target.getRegion();
+                builder.createBlock(&task_body);
+
                 mlir::pirg::SpmdOp spmd_grid = builder.create<mlir::pirg::SpmdOp>(location, num_blocks, nullptr, mlir::ValueRange(), parallel_data_range, nullptr);
                 mlir::Region &spmd_grid_body = spmd_grid.getRegion();
                 builder.createBlock(&spmd_grid_body);
@@ -167,7 +172,7 @@ void convert_op(mlir::OpBuilder& builder, SgExpression* node) {
                 mlir::ValueRange func_parameter_values = mlir::ValueRange(args_value);
                 builder.create<mlir::CallOp>(location, llvm::StringRef(func_name_string), mlir::TypeRange(), func_parameter_values);
 
-                builder.setInsertionPointAfter(spmd_grid);
+                builder.setInsertionPointAfter(task_target);
                 break;
             }
         default:
@@ -368,7 +373,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 SgOmpTargetStatement* target = isSgOmpTargetStatement(node);
                 std::cout << "Insert a target region...." << std::endl;
                 mlir::StringAttr device = builder.getStringAttr(llvm::StringRef("nvptx"));
-                mlir::pirg::TaskOp task_target = builder.create<mlir::pirg::TaskOp>(location, nullptr, device, nullptr, mlir::ValueRange(), nullptr);
+                mlir::pirg::TaskOp task_target = builder.create<mlir::pirg::TaskOp>(location, nullptr, device, nullptr, mlir::ValueRange(), mlir::ValueRange(), nullptr);
                 mlir::Region &task_body = task_target.getRegion();
                 builder.createBlock(&task_body);
 
@@ -385,7 +390,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
             {
                 SgOmpTaskStatement* target = isSgOmpTaskStatement(node);
                 std::cout << "Insert a task region...." << std::endl;
-                mlir::pirg::TaskOp task = builder.create<mlir::pirg::TaskOp>(location, nullptr, nullptr, nullptr, mlir::ValueRange(), nullptr);
+                mlir::pirg::TaskOp task = builder.create<mlir::pirg::TaskOp>(location, nullptr, nullptr, nullptr, mlir::ValueRange(), mlir::ValueRange(), nullptr);
                 mlir::Region &task_body = task.getRegion();
                 builder.createBlock(&task_body);
 
