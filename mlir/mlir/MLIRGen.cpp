@@ -63,9 +63,103 @@ SgInitializedName* get_sage_symbol(SgExpression* node) {
     return symbol;
 }
 
+void convert_binary_op(mlir::OpBuilder& builder, SgExpression* node) {
+
+    // TODO: implement common binary ops
+    switch (node->variantT()) {
+        case V_SgAddOp:
+            {
+                SgAddOp* op = isSgAddOp(node);
+                assert(op != NULL);
+                break;
+            }
+        default:
+            {
+                printf("Unknown Binary SgExpression!\n");
+            }
+    }
+}
+
+void convert_op(mlir::OpBuilder& builder, SgExpression* node) {
+
+    mlir::Location location = builder.getUnknownLoc();
+    SgGlobal* global_scope = SageInterface::getGlobalScope(node);
+    switch (node->variantT()) {
+        case V_SgCudaKernelCallExp:
+            {
+                SgCudaKernelCallExp* cuda_kernel = isSgCudaKernelCallExp(node);
+                assert(cuda_kernel != NULL);
+                // due to the implementation of REX/ROSE, only 1D kernel is supported.
+                // <<<number of blocks, number of threads per block>>>
+                SgCudaKernelExecConfig* kernel_config = cuda_kernel->get_exec_config();
+
+                mlir::Value num_blocks = nullptr;
+                SgExpression* num_blocks_expression = kernel_config->get_grid();
+                SgInitializedName* num_blocks_symbol = get_sage_symbol(num_blocks_expression);
+                if (num_blocks_symbol != NULL) {
+                    num_blocks = pirg::symbol_table.at(num_blocks_expression).first;
+                    assert(num_blocks != nullptr);
+                } else {
+                    num_blocks = builder.create<mlir::ConstantIndexOp>(location, std::stoi(num_blocks_expression->unparseToString()));
+                }
+
+                mlir::Value num_threads_per_block = nullptr;
+                SgExpression* num_threads_per_block_expression = kernel_config->get_blocks();
+                SgInitializedName* num_threads_per_block_symbol = get_sage_symbol(num_threads_per_block_expression);
+                if (num_threads_per_block_symbol != NULL) {
+                    num_threads_per_block = pirg::symbol_table.at(num_threads_per_block_expression).first;
+                    assert(num_threads_per_block != nullptr);
+                } else {
+                    num_threads_per_block = builder.create<mlir::ConstantIndexOp>(location, std::stoi(num_threads_per_block_expression->unparseToString()));
+                }
+
+                // TODO: determine the usage of parallel data in the CUDA kernel
+                std::vector<mlir::Value> value_list;
+                llvm::ArrayRef<mlir::Value> parallel_data_values = llvm::ArrayRef<mlir::Value>(value_list);
+                mlir::ValueRange parallel_data_range = mlir::ValueRange(parallel_data_values);
+
+                mlir::pirg::SpmdOp spmd_grid = builder.create<mlir::pirg::SpmdOp>(location, num_blocks, nullptr, mlir::ValueRange(), parallel_data_range, nullptr);
+                mlir::Region &spmd_grid_body = spmd_grid.getRegion();
+                builder.createBlock(&spmd_grid_body);
+
+                mlir::pirg::SpmdOp spmd_block = builder.create<mlir::pirg::SpmdOp>(location, num_threads_per_block, nullptr, mlir::ValueRange(), parallel_data_range, nullptr);
+                mlir::Region &spmd_block_body = spmd_block.getRegion();
+                builder.createBlock(&spmd_block_body);
+
+                SgExpression* func_name = cuda_kernel->get_function();
+                std::string func_name_string = func_name->unparseToString();
+                SgExpressionPtrList& func_parameters = cuda_kernel->get_args()->get_expressions();
+                SgFunctionSymbol* func_symbol = global_scope->lookup_function_symbol(func_name_string);
+                assert(func_symbol != NULL);
+
+                std::vector<mlir::Value> args;
+                SgExpressionPtrList::const_iterator iter;
+                for (iter = func_parameters.begin(); iter != func_parameters.end(); iter++) {
+                    mlir::Value arg = nullptr;
+                    SgInitializedName* symbol = get_sage_symbol(*iter);
+                    assert(symbol != NULL);
+                    arg = pirg::symbol_table.at(symbol).first;
+                    args.push_back(arg);
+                }
+                llvm::ArrayRef<mlir::Value> args_value = llvm::ArrayRef<mlir::Value>(args);
+                mlir::ValueRange func_parameter_values = mlir::ValueRange(args_value);
+                builder.create<mlir::CallOp>(location, llvm::StringRef(func_name_string), mlir::TypeRange(), func_parameter_values);
+
+                builder.setInsertionPointAfter(spmd_grid);
+                break;
+            }
+        default:
+            {
+                printf("Unknown SgExpression!\n");
+            }
+    }
+}
 
 void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
 
+    if (node->get_file_info()->get_line() == 0) {
+        return;
+    }
     mlir::Location location = builder.getUnknownLoc();
     switch (node->variantT()) {
         case V_SgVariableDeclaration:
@@ -93,6 +187,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 assert(target != NULL);
                 SgAssignOp* assign_op = isSgAssignOp(target->get_expression());
                 if (assign_op == NULL) {
+                    convert_op(builder, target->get_expression());
                     break;
                 }
                 try {
@@ -393,13 +488,15 @@ class PirgSageAST : public AstTopDownProcessing<InheritedAttribute> {
 };
 
 InheritedAttribute PirgSageAST::evaluateInheritedAttribute(SgNode* node, InheritedAttribute attribute) {
-
     if (isSgStatement(node)) {
         std::cout << "SgNode: " << node->sage_class_name() << " at line: " << node->get_startOfConstruct()->get_line() << "\n";
     }
     switch (node->variantT()) {
         case V_SgFunctionDefinition:
             {
+                if (node->get_file_info()->get_line() == 0) {
+                    return InheritedAttribute(NULL, false, attribute.depth+1, node);
+                }
                 SgFunctionDefinition* target = isSgFunctionDefinition(node);
                 llvm::SmallVector<mlir::Type, 4> arg_types;
 
@@ -433,13 +530,13 @@ InheritedAttribute PirgSageAST::evaluateInheritedAttribute(SgNode* node, Inherit
                 std::cout << "Create the body of base function...." << std::endl;
                 mlir::Block &entryBlock = *func.addEntryBlock();
 
+                // update the actual mlir::Value of each function parameter
+                int i = 0;
                 for (iter = function_parameters.begin(); iter != function_parameters.end(); iter++) {
-                    int i = 0;
                     SgInitializedName* symbol = *iter;
                     pirg::symbol_table[symbol] = std::make_pair(entryBlock.getArgument(i), symbol);
                     i++;
                 }
-
                 builder.setInsertionPointToStart(&entryBlock);
 
                 SgBasicBlock* func_body = target->get_body();
