@@ -46,3 +46,5 @@ mlir::ModuleOp generate_mlir(mlir::MLIRContext&, SgProject*);
 void convert_basic_block(mlir::OpBuilder&, SgBasicBlock*);
 
 void convert_statement(mlir::OpBuilder&, SgStatement*);
+mlir::Value convert_binary_op(mlir::OpBuilder&, SgExpression*);
+mlir::Value convert_op(mlir::OpBuilder&, SgExpression*);

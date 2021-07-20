@@ -151,6 +151,7 @@ int main(int argc, char **argv) {
   registry.insert<mlir::StandardOpsDialect>();
   registry.insert<mlir::scf::SCFDialect>();
   registry.insert<mlir::omp::OpenMPDialect>();
+  registry.insert<mlir::LLVM::LLVMDialect>();
 
   mlir::registerAsmPrinterCLOptions();
   mlir::registerMLIRContextCLOptions();
@@ -162,6 +163,7 @@ int main(int argc, char **argv) {
   context.getOrLoadDialect<mlir::StandardOpsDialect>();
   context.getOrLoadDialect<mlir::scf::SCFDialect>();
   context.getOrLoadDialect<mlir::omp::OpenMPDialect>();
+  context.getOrLoadDialect<mlir::LLVM::LLVMDialect>();
 
   SgProject* project = frontend(argc, argv);
   assert(project);

@@ -42,7 +42,7 @@ It will generate a parallel flow graph based on the REX AST, but for now, the vi
 Please notice that the flag `-rose:openmp:ast_only` has to be specified.
 
 ```bash
-./pfgg.out -rose:openmp:ast_only test.c
+./pfgg.out -rose:openmp:ast_only tests/test.c
 ```
 
 For the given input `test.c`, the SgStatements in the parallel flow graph would be:

@@ -54,6 +54,7 @@ SgProject* g_project = NULL;
 
 SgInitializedName* get_sage_symbol(SgExpression* node) {
 
+    std::cout << "======  Checking a SgExpression symbol: " << node->sage_class_name() << " ======\n";
     SgInitializedName* symbol = NULL;
     SgVarRefExp* symbol_expression = isSgVarRefExp(node);
     if (symbol_expression != NULL) {
@@ -63,14 +64,58 @@ SgInitializedName* get_sage_symbol(SgExpression* node) {
     return symbol;
 }
 
-void convert_binary_op(mlir::OpBuilder& builder, SgExpression* node) {
+mlir::Value convert_binary_op(mlir::OpBuilder& builder, SgExpression* node) {
 
+    mlir::Location location = builder.getUnknownLoc();
+    mlir::Value result = nullptr;
+    mlir::LLVM::FMFAttr fmf = mlir::LLVM::FMFAttr::get(builder.getContext(), {});
     // TODO: implement common binary ops
     switch (node->variantT()) {
         case V_SgAddOp:
             {
                 SgAddOp* op = isSgAddOp(node);
                 assert(op != NULL);
+                mlir::Value left_operand = convert_op(builder, op->get_lhs_operand());
+                mlir::Value right_operand = convert_op(builder, op->get_rhs_operand());
+                result = builder.create<mlir::LLVM::FAddOp>(location, left_operand, right_operand, fmf);
+                break;
+            }
+        case V_SgMultiplyOp:
+            {
+                SgMultiplyOp* op = isSgMultiplyOp(node);
+                assert(op != NULL);
+                mlir::Value left_operand = convert_op(builder, op->get_lhs_operand());
+                mlir::Value right_operand = convert_op(builder, op->get_rhs_operand());
+                result = builder.create<mlir::LLVM::FMulOp>(location, left_operand, right_operand, fmf);
+                break;
+            }
+        case V_SgDivideOp:
+            {
+                SgDivideOp* op = isSgDivideOp(node);
+                assert(op != NULL);
+                mlir::Value left_operand = convert_op(builder, isSgBinaryOp(node)->get_lhs_operand());
+                mlir::Value right_operand = convert_op(builder, isSgBinaryOp(node)->get_rhs_operand());
+                result = builder.create<mlir::LLVM::FDivOp>(location, left_operand, right_operand, fmf);
+                break;
+            }
+        case V_SgAssignOp:
+            {
+                SgAssignOp* assign_op = isSgAssignOp(node);
+                assert(assign_op != NULL);
+                try {
+                    std::stoi(assign_op->get_rhs_operand()->unparseToString());
+                }
+                catch (...) {
+                    break;
+                }
+
+                SgInitializedName *init_var = get_sage_symbol(assign_op->get_lhs_operand());
+                ROSE_ASSERT(init_var != NULL);
+                SgVariableSymbol *symbol = isSgVariableSymbol(init_var->search_for_symbol_from_symbol_table());
+                assert(symbol != NULL);
+                assert(pirg::symbol_table.count(init_var) != 0);
+                mlir::Value value = convert_op(builder, assign_op->get_rhs_operand());
+                pirg::symbol_table[init_var] = std::make_pair(value, init_var);
                 break;
             }
         default:
@@ -78,11 +123,13 @@ void convert_binary_op(mlir::OpBuilder& builder, SgExpression* node) {
                 printf("Unknown Binary SgExpression!\n");
             }
     }
+    return result;
 }
 
-void convert_op(mlir::OpBuilder& builder, SgExpression* node) {
+mlir::Value convert_op(mlir::OpBuilder& builder, SgExpression* node) {
 
     mlir::Location location = builder.getUnknownLoc();
+    mlir::Value result = nullptr;
     SgGlobal* global_scope = SageInterface::getGlobalScope(node);
     switch (node->variantT()) {
         case V_SgCudaKernelCallExp:
@@ -95,23 +142,11 @@ void convert_op(mlir::OpBuilder& builder, SgExpression* node) {
 
                 mlir::Value num_blocks = nullptr;
                 SgExpression* num_blocks_expression = kernel_config->get_grid();
-                SgInitializedName* num_blocks_symbol = get_sage_symbol(num_blocks_expression);
-                if (num_blocks_symbol != NULL) {
-                    num_blocks = pirg::symbol_table.at(num_blocks_expression).first;
-                    assert(num_blocks != nullptr);
-                } else {
-                    num_blocks = builder.create<mlir::ConstantIntOp>(location, std::stoi(num_blocks_expression->unparseToString()), 32);
-                }
+                num_blocks = convert_op(builder, num_blocks_expression);
 
                 mlir::Value num_threads_per_block = nullptr;
                 SgExpression* num_threads_per_block_expression = kernel_config->get_blocks();
-                SgInitializedName* num_threads_per_block_symbol = get_sage_symbol(num_threads_per_block_expression);
-                if (num_threads_per_block_symbol != NULL) {
-                    num_threads_per_block = pirg::symbol_table.at(num_threads_per_block_expression).first;
-                    assert(num_threads_per_block != nullptr);
-                } else {
-                    num_threads_per_block = builder.create<mlir::ConstantIntOp>(location, std::stoi(num_threads_per_block_expression->unparseToString()), 32);
-                }
+                num_threads_per_block = convert_op(builder, num_threads_per_block_expression);
 
                 SgExpressionPtrList& func_parameters = cuda_kernel->get_args()->get_expressions();
                 std::map<SgVariableSymbol *, ParallelData *> parallel_data = analyze_cuda_parallel_data(cuda_kernel);
@@ -175,11 +210,35 @@ void convert_op(mlir::OpBuilder& builder, SgExpression* node) {
                 builder.setInsertionPointAfter(task_target);
                 break;
             }
+        case V_SgAddOp:
+        case V_SgAssignOp:
+        case V_SgDivideOp:
+        case V_SgMultiplyOp:
+            {
+                SgBinaryOp* target = isSgBinaryOp(node);
+                assert(target != NULL);
+                result = convert_binary_op(builder, target);
+                break;
+            }
+        case V_SgVarRefExp:
+            {
+                SgInitializedName* symbol = get_sage_symbol(node);
+                result = pirg::symbol_table.at(symbol).first;
+                assert(result != nullptr);
+                break;
+            }
+        case V_SgIntVal:
+            {
+                result = builder.create<mlir::ConstantIntOp>(location, std::stoi(node->unparseToString()), 32);
+                break;
+            }
         default:
             {
                 printf("Unknown SgExpression!\n");
+                std::cout << "======  Meet a new SgExpression Op: " << node->sage_class_name() << " ======\n";
             }
     }
+    return result;
 }
 
 void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
@@ -212,27 +271,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
             {
                 SgExprStatement* target = isSgExprStatement(node);
                 assert(target != NULL);
-                SgAssignOp* assign_op = isSgAssignOp(target->get_expression());
-                if (assign_op == NULL) {
-                    convert_op(builder, target->get_expression());
-                    break;
-                }
-                try {
-                    std::stoi(assign_op->get_rhs_operand()->unparseToString());
-                }
-                catch (...) {
-                    break;
-                }
-
-                SgInitializedName *init_var = get_sage_symbol(assign_op->get_lhs_operand());
-
-                ROSE_ASSERT(init_var != NULL);
-                SgVariableSymbol *symbol = isSgVariableSymbol(init_var->search_for_symbol_from_symbol_table());
-                assert(symbol != NULL);
-                SgExpression* assigned_value = assign_op->get_rhs_operand();
-                assert(pirg::symbol_table.count(init_var) != 0);
-                mlir::Value value = builder.create<mlir::ConstantIndexOp>(location, std::stoi(assigned_value->unparseToString()));
-                pirg::symbol_table[init_var] = std::make_pair(value, init_var);
+                convert_op(builder, target->get_expression());
                 break;
             }
         case V_SgOmpParallelStatement:
