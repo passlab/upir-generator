@@ -32,6 +32,7 @@ void dummy() {
     context.getOrLoadDialect<mlir::StandardOpsDialect>();
     context.getOrLoadDialect<mlir::scf::SCFDialect>();
     context.getOrLoadDialect<mlir::omp::OpenMPDialect>();
+    context.getOrLoadDialect<mlir::acc::OpenACCDialect>();
     mlir::OpBuilder builder = mlir::OpBuilder(&context);
 
     std::cout << "Prepare a dummy code location...." << std::endl;
@@ -131,6 +132,7 @@ void dummy() {
     std::cout << "Dump the MLIR AST....\n" << std::endl;
     module->dump();
 
+    /*
     std::cout << "\nConvert Pirg dialect to OpenMP dialect....\n" << std::endl;
     mlir::IRRewriter rewriter = mlir::IRRewriter(&context);
 
@@ -139,6 +141,27 @@ void dummy() {
     mlir::omp::ParallelOp omp_parallel = rewriter.create<mlir::omp::ParallelOp>(location, nullptr, omp_num_threads, nullptr, mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), nullptr);
     rewriter.inlineRegionBefore(spmd.region(), omp_parallel.region(), omp_parallel.region().begin());
     rewriter.eraseOp(spmd);
+    */
+
+    std::cout << "\nConvert Pirg dialect to OpenACC dialect....\n" << std::endl;
+    mlir::IRRewriter rewriter = mlir::IRRewriter(&context);
+
+    mlir::Value acc_num_workers = spmd.num_units();
+    rewriter.setInsertionPointAfter(spmd);
+    mlir::acc::ParallelOp acc_parallel = rewriter.create<mlir::acc::ParallelOp>(location, nullptr, nullptr, mlir::ValueRange(), nullptr, nullptr, acc_num_workers, nullptr, nullptr, nullptr, nullptr, nullptr, mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), nullptr);
+    rewriter.inlineRegionBefore(spmd.region(), acc_parallel.region(), acc_parallel.region().begin());
+    rewriter.eraseOp(spmd);
+
+    rewriter.setInsertionPointAfter(workshare_target);
+    mlir::acc::LoopOp acc_loop = rewriter.create<mlir::acc::LoopOp>(location, mlir::TypeRange(), nullptr, nullptr, nullptr, nullptr, nullptr, false, false, false, mlir::ValueRange(), mlir::ValueRange(), nullptr, mlir::ValueRange(), mlir::acc::OpenACCExecMapping::WORKER);
+    rewriter.inlineRegionBefore(workshare_target.region(), acc_loop.region(), acc_loop.region().begin());
+    rewriter.eraseOp(workshare_target);
+
+    rewriter.eraseOp(parallel_data_value_x.getDefiningOp());
+    rewriter.eraseOp(parallel_data_value_y.getDefiningOp());
+    rewriter.eraseOp(parallel_data_value_a.getDefiningOp());
+    rewriter.eraseOp(parallel_data_value_n.getDefiningOp());
+    rewriter.eraseOp(parallel_data_value_i.getDefiningOp());
     module->dump();
 
     std::cout << "\nAll done...." << std::endl;
@@ -151,6 +174,7 @@ int main(int argc, char **argv) {
   registry.insert<mlir::StandardOpsDialect>();
   registry.insert<mlir::scf::SCFDialect>();
   registry.insert<mlir::omp::OpenMPDialect>();
+  registry.insert<mlir::acc::OpenACCDialect>();
   registry.insert<mlir::LLVM::LLVMDialect>();
 
   mlir::registerAsmPrinterCLOptions();

@@ -63,6 +63,7 @@ target_link_libraries(rex2mlir
     MLIRAnalysis
     MLIRIR
     MLIROpenMP
+    MLIROpenACC
     MLIRLLVMIR
     MLIRParser
     MLIRSideEffectInterfaces
