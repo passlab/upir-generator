@@ -1,6 +1,6 @@
-# parallel-flow-graph-generator
+# UPIR-generator
 
-PFGG is a tool based on REX compiler to generate a parallel flow graph, which reflects the task and data dependencies as well as other parallelism information.
+UPIR generator is a tool based on REX compiler to generate UPIR, a unified parallel intermediate representation that reflects the task and data dependencies as well as other parallelism information.
 
 # Prerequisite
 
@@ -29,35 +29,31 @@ export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 export LD_LIBRARY_PATH=$JAVA_HOME/jre/lib/amd64/server:$LD_LIBRARY_PATH
 ```
 
+LLVM is also required to support MLIR. Please follow the instructions [here](https://mlir.llvm.org/getting_started) to build LLVM properly.
+It could be installed to `/opt/llvm-install`.
+The the opt folder would be like:
+```bash
+opt
+├── llvm_install
+│   ├── bin
+│   ├── examples
+│   ├── include
+│   ├── lib
+│   ├── libexec
+│   └── share
+├── rex_install
+│   ├── bin
+│   ├── include
+│   ├── lib
+│   └── share
+└── ...
+
+```
 
 # Build
 
-```bash
-make
-```
+At the moment, the parallel flow graph and visualation are still work-in-progress. Please ignore them and check UPIR generator in `mlir` subfolder.
 
 # Run
 
-It will generate a parallel flow graph based on the REX AST, but for now, the visualization is only to list all the graph nodes in pre-order.
-Please notice that the flag `-rose:openmp:ast_only` has to be specified.
-
-```bash
-./pfgg.out -rose:openmp:ast_only tests/test.c
-```
-
-For the given input `test.c`, the SgStatements in the parallel flow graph would be:
-
-```bash
-Check the parallel flow graph....
-SgNode: SgFunctionDefinition at line: 5
-SgNode: SgVariableDeclaration at line: 7
-SgNode: SgOmpParallelStatement at line: 10
-SgNode: SgVariableDeclaration at line: 12
-SgNode: SgOmpForStatement at line: 15
-SgNode: SgForStatement at line: 16
-SgNode: SgExprStatement at line: 17
-SgNode: SgExprStatement at line: 19
-SgNode: SgOmpBarrierStatement at line: 20
-SgNode: SgExprStatement at line: 21
-SgNode: SgExprStatement at line: 24
-```
+...
