@@ -1,47 +1,47 @@
-//===- Ops.td - Pirg dialect operation definitions ---------*- tablegen -*-===//
+//===- Ops.td - Upir dialect operation definitions ---------*- tablegen -*-===//
 //
 //
 //===----------------------------------------------------------------------===//
 //
-// Defines the operations of the Pirg dialect.
+// Defines the operations of the Upir dialect.
 //
 //===----------------------------------------------------------------------===//
 
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
-// Provide a definition of the 'pirg' dialect in the ODS framework so that we
+// Provide a definition of the 'upir' dialect in the ODS framework so that we
 // can define our operations.
-def Pirg_Dialect : Dialect {
-  let name = "pirg";
-  let cppNamespace = "::mlir::pirg";
+def Upir_Dialect : Dialect {
+  let name = "upir";
+  let cppNamespace = "::mlir::upir";
 }
 
-// Base class for pirg dialect operations. This operation inherits from the base
+// Base class for upir dialect operations. This operation inherits from the base
 // `Op` class in OpBase.td, and provides:
 //   * The parent dialect of the operation.
 //   * The mnemonic for the operation, or the name without the dialect prefix.
 //   * A list of traits for the operation.
-class Pirg_Op<string mnemonic, list<OpTrait> traits = []> :
-    Op<Pirg_Dialect, mnemonic, traits>;
+class Upir_Op<string mnemonic, list<OpTrait> traits = []> :
+    Op<Upir_Dialect, mnemonic, traits>;
 
 // Provide a definition for the Toy StructType for use in ODS. This allows for
 // using StructType in a similar way to Tensor or MemRef. We use `DialectType`
 // to demarcate the StructType as belonging to the Toy dialect.
-def Pirg_ParallelDataType :
-    DialectType<Pirg_Dialect, CPred<"$_self.isa<ParallelDataType>()">,
-                "Pirg parallel data type">;
+def Upir_ParallelDataType :
+    DialectType<Upir_Dialect, CPred<"$_self.isa<ParallelDataType>()">,
+                "Upir parallel data type">;
 
 //===----------------------------------------------------------------------===//
-// Pirg Operations
+// Upir Operations
 //===----------------------------------------------------------------------===//
 
-// We define a pirg operation by inheriting from our base 'Pirg_Op' class above.
+// We define a upir operation by inheriting from our base 'Upir_Op' class above.
 // Here we provide the mnemonic and a list of traits for the operation.
 // An operation could be marked as 'NoSideEffect' as it is a pure operation
 // and may be removed if dead.
 
-def SpmdOp : Pirg_Op<"spmd", [AttrSizedOperandSegments]> {
+def SpmdOp : Upir_Op<"spmd", [AttrSizedOperandSegments]> {
   let summary = "spmd operation";
   let description = [{
     Create a SPMD region and perform parallel computing.
@@ -63,7 +63,7 @@ def SpmdOp : Pirg_Op<"spmd", [AttrSizedOperandSegments]> {
 
 }
 
-def WorkshareOp : Pirg_Op<"workshare", [AttrSizedOperandSegments, AllTypesMatch<["lower_bound", "upper_bound", "step"]>]> {
+def WorkshareOp : Upir_Op<"workshare", [AttrSizedOperandSegments, AllTypesMatch<["lower_bound", "upper_bound", "step"]>]> {
   let summary = "worksharing operation";
   let description = [{
     Distribute workload among the threads in a parallel region.
@@ -91,7 +91,7 @@ def WorkshareOp : Pirg_Op<"workshare", [AttrSizedOperandSegments, AllTypesMatch<
 
 }
 
-def TaskOp : Pirg_Op<"task", [AttrSizedOperandSegments]> {
+def TaskOp : Upir_Op<"task", [AttrSizedOperandSegments]> {
   let summary = "task operation";
   let description = [{
     Create a task region, which can be handled on the host or devices.
@@ -114,7 +114,7 @@ def TaskOp : Pirg_Op<"task", [AttrSizedOperandSegments]> {
 
 }
 
-def DataOp : Pirg_Op<"data", [AttrSizedOperandSegments]> {
+def DataOp : Upir_Op<"data", [AttrSizedOperandSegments]> {
   let summary = "data operation";
   let description = [{
     Create a data environment and/or perform data movements.
@@ -137,7 +137,7 @@ def DataOp : Pirg_Op<"data", [AttrSizedOperandSegments]> {
 
 }
 
-def BarrierOp : Pirg_Op<"barrier", [AttrSizedOperandSegments]> {
+def BarrierOp : Upir_Op<"barrier", [AttrSizedOperandSegments]> {
   let summary = "barrier operation";
   let description = [{
     Create a barrier for parallel units.
@@ -155,7 +155,7 @@ def BarrierOp : Pirg_Op<"barrier", [AttrSizedOperandSegments]> {
 
 }
 
-def ParallelDataInfoOp : Pirg_Op<"parallel_data_info", [NoSideEffect]> {
+def ParallelDataInfoOp : Upir_Op<"parallel_data_info", [NoSideEffect]> {
   let summary = "parallel data info";
   let description = [{
     Create a parallel data info for parallel units.

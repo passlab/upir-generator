@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "pirg/Dialect.h"
-#include "pirg/MLIRGen.h"
+#include "upir/Dialect.h"
+#include "upir/MLIRGen.h"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/ErrorOr.h"
@@ -28,7 +28,7 @@ void dummy() {
 
     std::cout << "Set up MLIR environment...." << std::endl;
     mlir::MLIRContext context;
-    context.getOrLoadDialect<mlir::pirg::PirgDialect>();
+    context.getOrLoadDialect<mlir::upir::UpirDialect>();
     context.getOrLoadDialect<mlir::StandardOpsDialect>();
     context.getOrLoadDialect<mlir::scf::SCFDialect>();
     context.getOrLoadDialect<mlir::omp::OpenMPDialect>();
@@ -68,30 +68,30 @@ void dummy() {
     // x
     llvm::ArrayRef<llvm::StringRef> parallel_data_string_x = {"x", "shared", "implicit", "", "", "read-only"};
     mlir::ArrayAttr parallel_data_x = builder.getStrArrayAttr(parallel_data_string_x);
-    mlir::Value parallel_data_value_x = builder.create<mlir::pirg::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data_x, entryBlock.getArgument(0));
+    mlir::Value parallel_data_value_x = builder.create<mlir::upir::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data_x, entryBlock.getArgument(0));
     // y
     llvm::ArrayRef<llvm::StringRef> parallel_data_string_y = {"y", "shared", "implicit", "", "", "read-write"};
     mlir::ArrayAttr parallel_data_y = builder.getStrArrayAttr(parallel_data_string_y);
-    mlir::Value parallel_data_value_y = builder.create<mlir::pirg::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data_y, entryBlock.getArgument(1));
+    mlir::Value parallel_data_value_y = builder.create<mlir::upir::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data_y, entryBlock.getArgument(1));
     // a
     llvm::ArrayRef<llvm::StringRef> parallel_data_string_a = {"a", "shared", "implicit", "", "", "read-only"};
     mlir::ArrayAttr parallel_data_a = builder.getStrArrayAttr(parallel_data_string_a);
-    mlir::Value parallel_data_value_a = builder.create<mlir::pirg::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data_a, entryBlock.getArgument(2));
+    mlir::Value parallel_data_value_a = builder.create<mlir::upir::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data_a, entryBlock.getArgument(2));
     // n
     llvm::ArrayRef<llvm::StringRef> parallel_data_string_n = {"n", "shared", "implicit", "", "", "read-only"};
     mlir::ArrayAttr parallel_data_n = builder.getStrArrayAttr(parallel_data_string_n);
-    mlir::Value parallel_data_value_n = builder.create<mlir::pirg::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data_n, entryBlock.getArgument(3));
+    mlir::Value parallel_data_value_n = builder.create<mlir::upir::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data_n, entryBlock.getArgument(3));
     // i
     llvm::ArrayRef<llvm::StringRef> parallel_data_string_i = {"i", "private", "implicit", "", "", "read-write"};
     mlir::ArrayAttr parallel_data_i = builder.getStrArrayAttr(parallel_data_string_i);
-    mlir::Value parallel_data_value_i = builder.create<mlir::pirg::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data_i, var_i);
+    mlir::Value parallel_data_value_i = builder.create<mlir::upir::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data_i, var_i);
 
     llvm::ArrayRef<mlir::Value> parallel_data_values = {parallel_data_value_x, parallel_data_value_y, parallel_data_value_a, parallel_data_value_n, parallel_data_value_i};
     mlir::ValueRange parallel_data_range = mlir::ValueRange(parallel_data_values);
 
     std::cout << "Insert a SPMD region to the base function...." << std::endl;
     mlir::Value num_units = builder.create<mlir::ConstantIntOp>(location, 6, 32);
-    mlir::pirg::SpmdOp spmd = builder.create<mlir::pirg::SpmdOp>(location, num_units, nullptr, mlir::ValueRange(), parallel_data_range, nullptr);
+    mlir::upir::SpmdOp spmd = builder.create<mlir::upir::SpmdOp>(location, num_units, nullptr, mlir::ValueRange(), parallel_data_range, nullptr);
     mlir::Region &spmd_body = spmd.getRegion();
     builder.createBlock(&spmd_body);
 
@@ -100,7 +100,7 @@ void dummy() {
     mlir::Value upper_bound = entryBlock.getArgument(3);
     mlir::Value step = builder.create<mlir::ConstantIndexOp>(location, 1);
 
-    mlir::pirg::WorkshareOp workshare_target = builder.create<mlir::pirg::WorkshareOp>(location, nullptr, lower_bound, upper_bound, step, nullptr, nullptr, nullptr, mlir::ValueRange(), nullptr, mlir::ValueRange(), nullptr);
+    mlir::upir::WorkshareOp workshare_target = builder.create<mlir::upir::WorkshareOp>(location, nullptr, lower_bound, upper_bound, step, nullptr, nullptr, nullptr, mlir::ValueRange(), nullptr, mlir::ValueRange(), nullptr);
     mlir::Region &workshare_body = workshare_target.getRegion();
     builder.createBlock(&workshare_body);
 
@@ -133,7 +133,7 @@ void dummy() {
     module->dump();
 
     /*
-    std::cout << "\nConvert Pirg dialect to OpenMP dialect....\n" << std::endl;
+    std::cout << "\nConvert Upir dialect to OpenMP dialect....\n" << std::endl;
     mlir::IRRewriter rewriter = mlir::IRRewriter(&context);
 
     mlir::Value omp_num_threads = spmd.num_units();
@@ -143,7 +143,7 @@ void dummy() {
     rewriter.eraseOp(spmd);
     */
 
-    std::cout << "\nConvert Pirg dialect to OpenACC dialect....\n" << std::endl;
+    std::cout << "\nConvert Upir dialect to OpenACC dialect....\n" << std::endl;
     mlir::IRRewriter rewriter = mlir::IRRewriter(&context);
 
     mlir::Value acc_num_workers = spmd.num_units();
@@ -183,7 +183,7 @@ int main(int argc, char **argv) {
   dummy();
 
   mlir::MLIRContext context;
-  context.getOrLoadDialect<mlir::pirg::PirgDialect>();
+  context.getOrLoadDialect<mlir::upir::UpirDialect>();
   context.getOrLoadDialect<mlir::StandardOpsDialect>();
   context.getOrLoadDialect<mlir::scf::SCFDialect>();
   context.getOrLoadDialect<mlir::omp::OpenMPDialect>();

@@ -1,2 +1,2 @@
 add_subdirectory(Standalone)
-add_subdirectory(pirg)
+add_subdirectory(upir)

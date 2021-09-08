@@ -1,27 +1,27 @@
-//===- Dialect.cpp - Pirg IR Dialect registration in MLIR -----------------===//
+//===- Dialect.cpp - Upir IR Dialect registration in MLIR -----------------===//
 //
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements the Pirg dialect
+// This file implements the Upir dialect
 //
 //===----------------------------------------------------------------------===//
 
-#include "pirg/Dialect.h"
+#include "upir/Dialect.h"
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/OpImplementation.h"
 
 using namespace mlir;
-using namespace mlir::pirg;
+using namespace mlir::upir;
 
 //===----------------------------------------------------------------------===//
-// Pirg Operations
+// Upir Operations
 //===----------------------------------------------------------------------===//
 
-static void printSpmdOp(mlir::OpAsmPrinter &printer, mlir::pirg::SpmdOp op) {
-  printer << "pirg.spmd";
+static void printSpmdOp(mlir::OpAsmPrinter &printer, mlir::upir::SpmdOp op) {
+  printer << "upir.spmd";
   if (auto threads = op.num_units())
     printer << " num_units(" << threads << " : " << threads.getType() << ")";
 
@@ -41,16 +41,16 @@ static void printSpmdOp(mlir::OpAsmPrinter &printer, mlir::pirg::SpmdOp op) {
   printer.printRegion(op.getRegion());
 }
 
-static void printWorkshareOp(mlir::OpAsmPrinter &printer, mlir::pirg::WorkshareOp op) {
-  printer << "pirg.workshare";
+static void printWorkshareOp(mlir::OpAsmPrinter &printer, mlir::upir::WorkshareOp op) {
+  printer << "upir.workshare";
   if (auto collapse = op.collapse())
     printer << " collapse(" << collapse << " : " << collapse.getType() << ")";
 
   printer.printRegion(op.getRegion());
 }
 
-static void printTaskOp(mlir::OpAsmPrinter &printer, mlir::pirg::TaskOp op) {
-  printer << "pirg.task";
+static void printTaskOp(mlir::OpAsmPrinter &printer, mlir::upir::TaskOp op) {
+  printer << "upir.task";
   if (auto device = op.device()) {
     printer << " target(" << device;
     if (auto device_id = op.device_id()) {
@@ -75,8 +75,8 @@ static void printTaskOp(mlir::OpAsmPrinter &printer, mlir::pirg::TaskOp op) {
   printer.printRegion(op.getRegion());
 }
 
-static void printDataOp(mlir::OpAsmPrinter &printer, mlir::pirg::DataOp op) {
-  printer << "pirg.data";
+static void printDataOp(mlir::OpAsmPrinter &printer, mlir::upir::DataOp op) {
+  printer << "upir.data";
   if (auto device = op.device()) {
     printer << " target(" << device;
     if (auto device_id = op.device_id()) {
@@ -88,8 +88,8 @@ static void printDataOp(mlir::OpAsmPrinter &printer, mlir::pirg::DataOp op) {
   printer.printRegion(op.getRegion());
 }
 
-static void printBarrierOp(mlir::OpAsmPrinter &printer, mlir::pirg::BarrierOp op) {
-  printer << "pirg.barrier";
+static void printBarrierOp(mlir::OpAsmPrinter &printer, mlir::upir::BarrierOp op) {
+  printer << "upir.barrier";
   if (auto task = op.task_id()) {
     printer << " task(" << task << ")";
   }
@@ -98,8 +98,8 @@ static void printBarrierOp(mlir::OpAsmPrinter &printer, mlir::pirg::BarrierOp op
   }
 }
 
-static void printParallelDataInfoOp(mlir::OpAsmPrinter &printer, mlir::pirg::ParallelDataInfoOp op) {
-  printer << "pirg.parallel_data_info (";
+static void printParallelDataInfoOp(mlir::OpAsmPrinter &printer, mlir::upir::ParallelDataInfoOp op) {
+  printer << "upir.parallel_data_info (";
 
   mlir::ArrayAttr array_attr = op.data();
   llvm::ArrayRef<mlir::Attribute> string_attr_list = array_attr.getValue();
@@ -127,7 +127,7 @@ static void printParallelDataInfoOp(mlir::OpAsmPrinter &printer, mlir::pirg::Par
 //===----------------------------------------------------------------------===//
 
 namespace mlir {
-namespace pirg {
+namespace upir {
 namespace detail {
 /// This class represents the internal storage of the Toy `StructType`.
 struct ParallelDataTypeStorage : public mlir::TypeStorage {
@@ -203,14 +203,14 @@ llvm::ArrayRef<mlir::StringAttr> ParallelDataType::getElementTypes() {
 }
 
 /// Parse an instance of a type registered to the toy dialect.
-mlir::Type PirgDialect::parseType(mlir::DialectAsmParser &parser) const {
+mlir::Type UpirDialect::parseType(mlir::DialectAsmParser &parser) const {
     // TODO
     return nullptr;
 }
 
 
 /// Print an instance of a type registered to the toy dialect.
-void PirgDialect::printType(mlir::Type type,
+void UpirDialect::printType(mlir::Type type,
                            mlir::DialectAsmPrinter &printer) const {
   // Currently the only toy type is a struct type.
   //ParallelDataType parallelDataType = type.cast<ParallelDataType>();
@@ -227,18 +227,18 @@ void PirgDialect::printType(mlir::Type type,
 //===----------------------------------------------------------------------===//
 
 #define GET_OP_CLASSES
-#include "pirg/Ops.cpp.inc"
+#include "upir/Ops.cpp.inc"
 
 //===----------------------------------------------------------------------===//
-// PirgDialect
+// UpirDialect
 //===----------------------------------------------------------------------===//
 
 /// Dialect initialization, the instance will be owned by the context. This is
 /// the point of registration of types and operations for the dialect.
-void PirgDialect::initialize() {
+void UpirDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
-#include "pirg/Ops.cpp.inc"
+#include "upir/Ops.cpp.inc"
       >();
   addTypes<ParallelDataType>();
 }

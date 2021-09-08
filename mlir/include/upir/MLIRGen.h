@@ -1,4 +1,4 @@
-//===- MLIRGen.h - MLIR Generation from a Pirg AST -------------------------===//
+//===- MLIRGen.h - MLIR Generation from a Upir AST -------------------------===//
 //
 //
 //===----------------------------------------------------------------------===//
@@ -24,9 +24,9 @@ class MLIRContext;
 class OwningModuleRef;
 } // namespace mlir
 
-namespace pirg {
+namespace upir {
 
-} // namespace pirg
+} // namespace upir
 
 class InheritedAttribute {
 

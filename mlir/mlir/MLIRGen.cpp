@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "pirg/MLIRGen.h"
-#include "pirg/Dialect.h"
+#include "upir/MLIRGen.h"
+#include "upir/Dialect.h"
 
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
@@ -27,7 +27,7 @@
 
 #include "data_analyzing.h"
 
-using namespace mlir::pirg;
+using namespace mlir::upir;
 
 using llvm::ArrayRef;
 using llvm::cast;
@@ -44,12 +44,12 @@ namespace {
 
 } // namespace
 
-namespace pirg {
+namespace upir {
 
 std::map<SgNode*, std::pair<mlir::Value, SgInitializedName*>> symbol_table;
 SgProject* g_project = NULL;
 
-} // namespace pirg
+} // namespace upir
 
 
 SgInitializedName* get_sage_symbol(SgExpression* node) {
@@ -113,9 +113,9 @@ mlir::Value convert_binary_op(mlir::OpBuilder& builder, SgExpression* node) {
                 ROSE_ASSERT(init_var != NULL);
                 SgVariableSymbol *symbol = isSgVariableSymbol(init_var->search_for_symbol_from_symbol_table());
                 assert(symbol != NULL);
-                assert(pirg::symbol_table.count(init_var) != 0);
+                assert(upir::symbol_table.count(init_var) != 0);
                 mlir::Value value = convert_op(builder, assign_op->get_rhs_operand());
-                pirg::symbol_table[init_var] = std::make_pair(value, init_var);
+                upir::symbol_table[init_var] = std::make_pair(value, init_var);
                 break;
             }
         default:
@@ -167,9 +167,9 @@ mlir::Value convert_op(mlir::OpBuilder& builder, SgExpression* node) {
                   i++;
                   mlir::Value symbol_value = nullptr;
                   if (sage_symbol != NULL) {
-                      symbol_value = pirg::symbol_table[sage_symbol].first;
+                      symbol_value = upir::symbol_table[sage_symbol].first;
                   }
-                  mlir::Value parallel_data_value = builder.create<mlir::pirg::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data, symbol_value);
+                  mlir::Value parallel_data_value = builder.create<mlir::upir::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data, symbol_value);
                   value_list.push_back(parallel_data_value);
 
                 }
@@ -177,15 +177,15 @@ mlir::Value convert_op(mlir::OpBuilder& builder, SgExpression* node) {
                 mlir::ValueRange parallel_data_range = mlir::ValueRange(parallel_data_values);
 
                 mlir::StringAttr device = builder.getStringAttr(llvm::StringRef("nvptx"));
-                mlir::pirg::TaskOp task_target = builder.create<mlir::pirg::TaskOp>(location, nullptr, device, nullptr, mlir::ValueRange(), parallel_data_range, nullptr);
+                mlir::upir::TaskOp task_target = builder.create<mlir::upir::TaskOp>(location, nullptr, device, nullptr, mlir::ValueRange(), parallel_data_range, nullptr);
                 mlir::Region &task_body = task_target.getRegion();
                 builder.createBlock(&task_body);
 
-                mlir::pirg::SpmdOp spmd_grid = builder.create<mlir::pirg::SpmdOp>(location, num_blocks, nullptr, mlir::ValueRange(), parallel_data_range, nullptr);
+                mlir::upir::SpmdOp spmd_grid = builder.create<mlir::upir::SpmdOp>(location, num_blocks, nullptr, mlir::ValueRange(), parallel_data_range, nullptr);
                 mlir::Region &spmd_grid_body = spmd_grid.getRegion();
                 builder.createBlock(&spmd_grid_body);
 
-                mlir::pirg::SpmdOp spmd_block = builder.create<mlir::pirg::SpmdOp>(location, num_threads_per_block, nullptr, mlir::ValueRange(), parallel_data_range, nullptr);
+                mlir::upir::SpmdOp spmd_block = builder.create<mlir::upir::SpmdOp>(location, num_threads_per_block, nullptr, mlir::ValueRange(), parallel_data_range, nullptr);
                 mlir::Region &spmd_block_body = spmd_block.getRegion();
                 builder.createBlock(&spmd_block_body);
 
@@ -200,7 +200,7 @@ mlir::Value convert_op(mlir::OpBuilder& builder, SgExpression* node) {
                     mlir::Value arg = nullptr;
                     SgInitializedName* symbol = get_sage_symbol(*iter);
                     assert(symbol != NULL);
-                    arg = pirg::symbol_table.at(symbol).first;
+                    arg = upir::symbol_table.at(symbol).first;
                     args.push_back(arg);
                 }
                 llvm::ArrayRef<mlir::Value> args_value = llvm::ArrayRef<mlir::Value>(args);
@@ -223,7 +223,7 @@ mlir::Value convert_op(mlir::OpBuilder& builder, SgExpression* node) {
         case V_SgVarRefExp:
             {
                 SgInitializedName* symbol = get_sage_symbol(node);
-                result = pirg::symbol_table.at(symbol).first;
+                result = upir::symbol_table.at(symbol).first;
                 assert(result != nullptr);
                 break;
             }
@@ -262,8 +262,8 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                     } else {
                         type = builder.getI32Type();
                     }
-                    assert(pirg::symbol_table.count(symbol) == 0);
-                    pirg::symbol_table[symbol] = std::make_pair(nullptr, symbol);
+                    assert(upir::symbol_table.count(symbol) == 0);
+                    upir::symbol_table[symbol] = std::make_pair(nullptr, symbol);
                 }
                 break;
             }
@@ -279,7 +279,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 SgOmpParallelStatement* target = isSgOmpParallelStatement(node);
                 std::cout << "Insert a SPMD region...." << std::endl;
 
-                std::map<SgVariableSymbol *, ParallelData *> parallel_data = analyze_parallel_data(isSgSourceFile(&(pirg::g_project->get_file(0))));
+                std::map<SgVariableSymbol *, ParallelData *> parallel_data = analyze_parallel_data(isSgSourceFile(&(upir::g_project->get_file(0))));
                 std::map<SgVariableSymbol *, ParallelData *>::iterator data_iter;
                 std::vector<mlir::Value> value_list;
                 for (data_iter = parallel_data.begin(); data_iter != parallel_data.end(); data_iter++) {
@@ -292,7 +292,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                   std::string data_access = iter->get_data_access();
                   llvm::ArrayRef<llvm::StringRef> parallel_data_string = {symbol, sharing_property, sharing_visibility, mapping_property, mapping_visibility, data_access};
                   mlir::ArrayAttr parallel_data = builder.getStrArrayAttr(parallel_data_string);
-                  mlir::Value parallel_data_value = builder.create<mlir::pirg::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data, nullptr);
+                  mlir::Value parallel_data_value = builder.create<mlir::upir::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data, nullptr);
                   value_list.push_back(parallel_data_value);
 
                 }
@@ -307,7 +307,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                     int32_t num_thread_value = std::stoi(num_threads_string);
                     num_threads = builder.create<mlir::ConstantIntOp>(location, num_thread_value, 32);
                 }
-                mlir::pirg::SpmdOp spmd = builder.create<mlir::pirg::SpmdOp>(location, num_threads, nullptr, mlir::ValueRange(), parallel_data_range, nullptr);
+                mlir::upir::SpmdOp spmd = builder.create<mlir::upir::SpmdOp>(location, num_threads, nullptr, mlir::ValueRange(), parallel_data_range, nullptr);
                 mlir::Region &spmd_body = spmd.getRegion();
                 builder.createBlock(&spmd_body);
 
@@ -362,19 +362,19 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 mlir::Value lower_bound = nullptr;
                 SgInitializedName* for_lower_symbol = get_sage_symbol(for_lower);
                 if (for_lower_symbol != NULL) {
-                    lower_bound = pirg::symbol_table.at(for_lower_symbol).first;
+                    lower_bound = upir::symbol_table.at(for_lower_symbol).first;
                 } else {
-                    if (pirg::symbol_table.count(for_lower) != 0) {
-                        lower_bound = pirg::symbol_table[for_lower].first;
+                    if (upir::symbol_table.count(for_lower) != 0) {
+                        lower_bound = upir::symbol_table[for_lower].first;
                     } else {
                         lower_bound = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_lower->unparseToString()));
-                        pirg::symbol_table[for_lower] = std::make_pair(lower_bound, for_lower_symbol);
+                        upir::symbol_table[for_lower] = std::make_pair(lower_bound, for_lower_symbol);
                     }
                 }
                 mlir::Value upper_bound = nullptr;
                 SgInitializedName* for_upper_symbol = get_sage_symbol(for_upper);
                 if (for_upper_symbol != NULL) {
-                    upper_bound = pirg::symbol_table.at(for_upper_symbol).first;
+                    upper_bound = upir::symbol_table.at(for_upper_symbol).first;
                     assert(upper_bound != nullptr);
                 } else {
                     upper_bound = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_upper->unparseToString()));
@@ -383,17 +383,17 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 mlir::Value stride = nullptr;
                 SgInitializedName* for_stride_symbol = get_sage_symbol(for_stride);
                 if (for_stride_symbol != NULL) {
-                    stride = pirg::symbol_table.at(for_stride_symbol).first;
+                    stride = upir::symbol_table.at(for_stride_symbol).first;
                 } else {
-                    if (pirg::symbol_table.count(for_stride_symbol) != 0) {
-                        stride = pirg::symbol_table.at(for_stride).first;
+                    if (upir::symbol_table.count(for_stride_symbol) != 0) {
+                        stride = upir::symbol_table.at(for_stride).first;
                     } else {
                         stride = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_stride->unparseToString()));
-                        pirg::symbol_table[for_stride] = std::make_pair(stride, for_stride_symbol);
+                        upir::symbol_table[for_stride] = std::make_pair(stride, for_stride_symbol);
                     }
                 }
 
-                mlir::pirg::WorkshareOp workshare_target = builder.create<mlir::pirg::WorkshareOp>(location, nullptr, lower_bound, upper_bound, stride, nullptr, nullptr, collapse, mlir::ValueRange(), nullptr, mlir::ValueRange(), nullptr);
+                mlir::upir::WorkshareOp workshare_target = builder.create<mlir::upir::WorkshareOp>(location, nullptr, lower_bound, upper_bound, stride, nullptr, nullptr, collapse, mlir::ValueRange(), nullptr, mlir::ValueRange(), nullptr);
                 mlir::Region &workshare_body = workshare_target.getRegion();
                 builder.createBlock(&workshare_body);
 
@@ -412,7 +412,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 SgOmpTargetStatement* target = isSgOmpTargetStatement(node);
                 std::cout << "Insert a target region...." << std::endl;
                 mlir::StringAttr device = builder.getStringAttr(llvm::StringRef("nvptx"));
-                mlir::pirg::TaskOp task_target = builder.create<mlir::pirg::TaskOp>(location, nullptr, device, nullptr, mlir::ValueRange(), mlir::ValueRange(), nullptr);
+                mlir::upir::TaskOp task_target = builder.create<mlir::upir::TaskOp>(location, nullptr, device, nullptr, mlir::ValueRange(), mlir::ValueRange(), nullptr);
                 mlir::Region &task_body = task_target.getRegion();
                 builder.createBlock(&task_body);
 
@@ -429,7 +429,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
             {
                 SgOmpTaskStatement* target = isSgOmpTaskStatement(node);
                 std::cout << "Insert a task region...." << std::endl;
-                mlir::pirg::TaskOp task = builder.create<mlir::pirg::TaskOp>(location, nullptr, nullptr, nullptr, mlir::ValueRange(), mlir::ValueRange(), nullptr);
+                mlir::upir::TaskOp task = builder.create<mlir::upir::TaskOp>(location, nullptr, nullptr, nullptr, mlir::ValueRange(), mlir::ValueRange(), nullptr);
                 mlir::Region &task_body = task.getRegion();
                 builder.createBlock(&task_body);
 
@@ -472,20 +472,20 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 mlir::Value lower_bound = nullptr;
                 SgInitializedName* for_lower_symbol = get_sage_symbol(for_lower);
                 if (for_lower_symbol != NULL) {
-                    lower_bound = pirg::symbol_table.at(for_lower_symbol).first;
+                    lower_bound = upir::symbol_table.at(for_lower_symbol).first;
                 } else {
-                    if (pirg::symbol_table.count(for_lower) != 0) {
-                        lower_bound = pirg::symbol_table.at(for_lower).first;
+                    if (upir::symbol_table.count(for_lower) != 0) {
+                        lower_bound = upir::symbol_table.at(for_lower).first;
                     } else {
                         lower_bound = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_lower->unparseToString()));
-                        pirg::symbol_table[for_lower] = std::make_pair(lower_bound, for_lower_symbol);
+                        upir::symbol_table[for_lower] = std::make_pair(lower_bound, for_lower_symbol);
                     }
                 }
 
                 mlir::Value upper_bound = nullptr;
                 SgInitializedName* for_upper_symbol = get_sage_symbol(for_upper);
                 if (for_upper_symbol != NULL) {
-                    upper_bound = pirg::symbol_table.at(for_upper_symbol).first;
+                    upper_bound = upir::symbol_table.at(for_upper_symbol).first;
                 } else {
                     upper_bound = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_upper->unparseToString()));
                 }
@@ -493,13 +493,13 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 mlir::Value stride = nullptr;
                 SgInitializedName* for_stride_symbol = get_sage_symbol(for_stride);
                 if (for_stride_symbol != NULL) {
-                    stride = pirg::symbol_table.at(for_stride_symbol).first;
+                    stride = upir::symbol_table.at(for_stride_symbol).first;
                 } else {
-                    if (pirg::symbol_table.count(for_stride_symbol) != 0) {
-                        stride = pirg::symbol_table.at(for_stride).first;
+                    if (upir::symbol_table.count(for_stride_symbol) != 0) {
+                        stride = upir::symbol_table.at(for_stride).first;
                     } else {
                         stride = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_stride->unparseToString()));
-                        pirg::symbol_table[for_stride] = std::make_pair(stride, for_stride_symbol);
+                        upir::symbol_table[for_stride] = std::make_pair(stride, for_stride_symbol);
                     }
                 }
 
@@ -537,11 +537,11 @@ void convert_basic_block(mlir::OpBuilder& builder, SgBasicBlock* block) {
 }
 
 
-class PirgSageAST : public AstTopDownProcessing<InheritedAttribute> {
+class UpirSageAST : public AstTopDownProcessing<InheritedAttribute> {
 
 
     public:
-        PirgSageAST(mlir::ModuleOp& __root, mlir::OpBuilder& __builder) : root(__root), builder(__builder) { };
+        UpirSageAST(mlir::ModuleOp& __root, mlir::OpBuilder& __builder) : root(__root), builder(__builder) { };
         mlir::ModuleOp& get_root() { return root; };
         void set_root(mlir::ModuleOp& __root) { root = __root; };
         mlir::OpBuilder& get_builder() { return builder; };
@@ -553,7 +553,7 @@ class PirgSageAST : public AstTopDownProcessing<InheritedAttribute> {
         virtual InheritedAttribute evaluateInheritedAttribute(SgNode*, InheritedAttribute) override;
 };
 
-InheritedAttribute PirgSageAST::evaluateInheritedAttribute(SgNode* node, InheritedAttribute attribute) {
+InheritedAttribute UpirSageAST::evaluateInheritedAttribute(SgNode* node, InheritedAttribute attribute) {
     if (isSgStatement(node)) {
         std::cout << "SgNode: " << node->sage_class_name() << " at line: " << node->get_startOfConstruct()->get_line() << "\n";
     }
@@ -578,8 +578,8 @@ InheritedAttribute PirgSageAST::evaluateInheritedAttribute(SgNode* node, Inherit
                         type = builder.getI32Type();
                     }
                     arg_types.push_back(type);
-                    assert(pirg::symbol_table.count(symbol) == 0);
-                    pirg::symbol_table[symbol] = std::make_pair(nullptr, symbol);
+                    assert(upir::symbol_table.count(symbol) == 0);
+                    upir::symbol_table[symbol] = std::make_pair(nullptr, symbol);
                 }
 
                 mlir::Location location = builder.getUnknownLoc();
@@ -600,7 +600,7 @@ InheritedAttribute PirgSageAST::evaluateInheritedAttribute(SgNode* node, Inherit
                 int i = 0;
                 for (iter = function_parameters.begin(); iter != function_parameters.end(); iter++) {
                     SgInitializedName* symbol = *iter;
-                    pirg::symbol_table[symbol] = std::make_pair(entryBlock.getArgument(i), symbol);
+                    upir::symbol_table[symbol] = std::make_pair(entryBlock.getArgument(i), symbol);
                     i++;
                 }
                 builder.setInsertionPointToStart(&entryBlock);
@@ -627,14 +627,14 @@ InheritedAttribute PirgSageAST::evaluateInheritedAttribute(SgNode* node, Inherit
 mlir::ModuleOp generate_mlir(mlir::MLIRContext& context, SgProject* project) {
 
     ROSE_ASSERT(project != NULL);
-    pirg::g_project = project;
+    upir::g_project = project;
 
     mlir::OpBuilder builder = mlir::OpBuilder(&context);
     mlir::ModuleOp project_module = mlir::ModuleOp::create(builder.getUnknownLoc());
 
-    PirgSageAST pirg_ast = PirgSageAST(project_module, builder);
+    UpirSageAST upir_ast = UpirSageAST(project_module, builder);
     InheritedAttribute attribute(NULL, true, 0, NULL);
-    pirg_ast.traverseInputFiles(project, attribute);
+    upir_ast.traverseInputFiles(project, attribute);
 
     return project_module;
 };

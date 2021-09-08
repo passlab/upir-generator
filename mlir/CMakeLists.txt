@@ -54,7 +54,7 @@ set(REX2MLIR_SOURCE_FILES
 )
 
 add_executable(rex2mlir ${REX2MLIR_SOURCE_FILES})
-add_dependencies(rex2mlir PirgOpsIncGen)
+add_dependencies(rex2mlir UpirOpsIncGen)
 target_compile_options(rex2mlir PUBLIC -Wno-misleading-indentation)
 target_link_libraries(rex2mlir
   PRIVATE

@@ -1,9 +1,9 @@
-//===- Dialect.h - Dialect definition for the Pirg IR ----------------------===//
+//===- Dialect.h - Dialect definition for the Upir IR ----------------------===//
 //
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements the IR of Pirg Dialect.
+// This file implements the IR of Upir Dialect.
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,7 +12,7 @@
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 
 namespace mlir {
-namespace pirg {
+namespace upir {
 namespace detail {
 struct ParallelDataTypeStorage;
 } // end namespace detail
@@ -20,16 +20,16 @@ struct ParallelDataTypeStorage;
 } // end namespace mlir
 
 /// Include the auto-generated header file containing the declaration of the
-/// pirg dialect.
-#include "pirg/Dialect.h.inc"
+/// upir dialect.
+#include "upir/Dialect.h.inc"
 
 /// Include the auto-generated header file containing the declarations of the
-/// pirg operations.
+/// upir operations.
 #define GET_OP_CLASSES
-#include "pirg/Ops.h.inc"
+#include "upir/Ops.h.inc"
 
 namespace mlir {
-namespace pirg {
+namespace upir {
 
 //===----------------------------------------------------------------------===//
 // Toy Types
