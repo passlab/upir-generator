@@ -18,7 +18,7 @@ opt
 └── ...
 
 ```
-To set up the REX compiler for building PFGG:
+To set up the REX compiler for building UPIR generator:
 
 ```bash
 export REX_INSTALL=/opt/rex_install
