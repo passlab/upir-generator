@@ -21,36 +21,36 @@ using namespace mlir::upir;
 //===----------------------------------------------------------------------===//
 
 static void printSpmdOp(mlir::OpAsmPrinter &printer, mlir::upir::SpmdOp op) {
-  printer << "upir.spmd";
   if (auto threads = op.num_units())
     printer << " num_units(" << threads << " : " << threads.getType() << ")";
 
   mlir::OperandRange data = op.data();
   if (data.size()) {
-      printer << " data(";
-      unsigned int i;
-      for (i = 0; i < data.size(); i++) {
-        if (i != 0) {
-            printer << ", ";
-        }
-        printer << data[i];
+    printer << " data(";
+    unsigned int i;
+    for (i = 0; i < data.size(); i++) {
+      if (i != 0) {
+        printer << ", ";
       }
-      printer << ")";
+      printer << data[i];
+    }
+    printer << ")";
   }
+  printer << " ";
 
   printer.printRegion(op.getRegion());
 }
 
-static void printWorkshareOp(mlir::OpAsmPrinter &printer, mlir::upir::WorkshareOp op) {
-  printer << "upir.workshare";
+static void printWorkshareOp(mlir::OpAsmPrinter &printer,
+                             mlir::upir::WorkshareOp op) {
   if (auto collapse = op.collapse())
     printer << " collapse(" << collapse << " : " << collapse.getType() << ")";
 
+  printer << " ";
   printer.printRegion(op.getRegion());
 }
 
 static void printTaskOp(mlir::OpAsmPrinter &printer, mlir::upir::TaskOp op) {
-  printer << "upir.task";
   if (auto device = op.device()) {
     printer << " target(" << device;
     if (auto device_id = op.device_id()) {
@@ -61,22 +61,21 @@ static void printTaskOp(mlir::OpAsmPrinter &printer, mlir::upir::TaskOp op) {
 
   mlir::OperandRange data = op.data();
   if (data.size()) {
-      printer << " data(";
-      unsigned int i;
-      for (i = 0; i < data.size(); i++) {
-        if (i != 0) {
-            printer << ", ";
-        }
-        printer << data[i];
+    printer << " data(";
+    unsigned int i;
+    for (i = 0; i < data.size(); i++) {
+      if (i != 0) {
+        printer << ", ";
       }
-      printer << ")";
+      printer << data[i];
+    }
+    printer << ")";
   }
-
+  printer << " ";
   printer.printRegion(op.getRegion());
 }
 
 static void printDataOp(mlir::OpAsmPrinter &printer, mlir::upir::DataOp op) {
-  printer << "upir.data";
   if (auto device = op.device()) {
     printer << " target(" << device;
     if (auto device_id = op.device_id()) {
@@ -84,42 +83,46 @@ static void printDataOp(mlir::OpAsmPrinter &printer, mlir::upir::DataOp op) {
     }
     printer << ")";
   }
-
+  printer << " ";
   printer.printRegion(op.getRegion());
 }
 
-static void printBarrierOp(mlir::OpAsmPrinter &printer, mlir::upir::BarrierOp op) {
-  printer << "upir.barrier";
+static void printBarrierOp(mlir::OpAsmPrinter &printer,
+                           mlir::upir::BarrierOp op) {
   if (auto task = op.task_id()) {
     printer << " task(" << task << ")";
   }
   if (auto implicit = op.implicit()) {
     printer << " implicit";
   }
+  printer << " ";
 }
 
-static void printParallelDataInfoOp(mlir::OpAsmPrinter &printer, mlir::upir::ParallelDataInfoOp op) {
-  printer << "upir.parallel_data_info (";
-
+static void printParallelDataInfoOp(mlir::OpAsmPrinter &printer,
+                                    mlir::upir::ParallelDataInfoOp op) {
+  printer << " (";
   mlir::ArrayAttr array_attr = op.data();
   llvm::ArrayRef<mlir::Attribute> string_attr_list = array_attr.getValue();
   llvm::ArrayRef<mlir::Attribute>::iterator iter;
-  for (iter = string_attr_list.begin(); iter != string_attr_list.end(); iter++) {
-      if (iter != string_attr_list.begin()) {
-        printer << ", ";
-      }
-      const mlir::StringAttr* string_attr = static_cast<const mlir::StringAttr*>(iter);
-      llvm::StringRef s = string_attr->getValue();
-      if (s == "") {
-          s = "n/a";
-      }
-      printer << s;
+  for (iter = string_attr_list.begin(); iter != string_attr_list.end();
+       iter++) {
+    if (iter != string_attr_list.begin()) {
+      printer << ", ";
+    }
+    const mlir::StringAttr *string_attr =
+        static_cast<const mlir::StringAttr *>(iter);
+    llvm::StringRef s = string_attr->getValue();
+    if (s == "") {
+      s = "n/a";
+    }
+    printer << s;
   }
   if (auto ssa_id = op.value()) {
-      printer << " : " << ssa_id;
+    printer << " : " << ssa_id;
   }
 
   printer << ")";
+  printer << " ";
 }
 
 //===----------------------------------------------------------------------===//
@@ -167,8 +170,8 @@ struct ParallelDataTypeStorage : public mlir::TypeStorage {
   /// This method takes an instance of a storage allocator, and an instance of a
   /// `KeyTy`. The given allocator must be used for *all* necessary dynamic
   /// allocations used to create the type storage and its internal.
-  static ParallelDataTypeStorage *construct(mlir::TypeStorageAllocator &allocator,
-                                      const KeyTy &key) {
+  static ParallelDataTypeStorage *
+  construct(mlir::TypeStorageAllocator &allocator, const KeyTy &key) {
     // Copy the elements from the provided `KeyTy` into the allocator.
     llvm::ArrayRef<mlir::StringAttr> elementTypes = allocator.copyInto(key);
 
@@ -181,12 +184,13 @@ struct ParallelDataTypeStorage : public mlir::TypeStorage {
   llvm::ArrayRef<mlir::StringAttr> elementTypes;
 };
 } // end namespace detail
-} // end namespace toy
+} // namespace upir
 } // end namespace mlir
 
 /// Create an instance of a `StructType` with the given element types. There
 /// *must* be at least one element type.
-ParallelDataType ParallelDataType::get(llvm::ArrayRef<mlir::StringAttr> elementTypes) {
+ParallelDataType
+ParallelDataType::get(llvm::ArrayRef<mlir::StringAttr> elementTypes) {
   assert(!elementTypes.empty() && "expected at least 1 element type");
 
   // Call into a helper 'get' method in 'TypeBase' to get a uniqued instance
@@ -204,23 +208,23 @@ llvm::ArrayRef<mlir::StringAttr> ParallelDataType::getElementTypes() {
 
 /// Parse an instance of a type registered to the toy dialect.
 mlir::Type UpirDialect::parseType(mlir::DialectAsmParser &parser) const {
-    // TODO
-    return nullptr;
+  // TODO
+  return nullptr;
 }
-
 
 /// Print an instance of a type registered to the toy dialect.
 void UpirDialect::printType(mlir::Type type,
-                           mlir::DialectAsmPrinter &printer) const {
+                            mlir::DialectAsmPrinter &printer) const {
   // Currently the only toy type is a struct type.
-  //ParallelDataType parallelDataType = type.cast<ParallelDataType>();
+  // ParallelDataType parallelDataType = type.cast<ParallelDataType>();
 
   // Print the struct type according to the parser format.
-  //printer << "struct<";
-  //llvm::interleaveComma(parallelDataType.getElementTypes(), printer);
-  //printer << '>';
+  // printer << "struct<";
+  // llvm::interleaveComma(parallelDataType.getElementTypes(), printer);
+  // printer << '>';
 }
 
+#include "upir/Dialect.cpp.inc"
 
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
@@ -242,4 +246,3 @@ void UpirDialect::initialize() {
       >();
   addTypes<ParallelDataType>();
 }
-
