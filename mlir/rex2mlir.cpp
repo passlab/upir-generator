@@ -171,26 +171,38 @@ void dummy() {
   theModule.push_back(func);
 
   mlir::OwningOpRef<mlir::ModuleOp> module = theModule;
-  // mlir::OwningModuleRef module = theModule;
   assert(module);
 
   std::cout << "Dump the MLIR AST....\n" << std::endl;
   module->dump();
 
-  /*
   std::cout << "\nConvert Upir dialect to OpenMP dialect....\n" << std::endl;
-  mlir::IRRewriter rewriter = mlir::IRRewriter(&context);
+  mlir::IRRewriter rewriter(&context);
 
   mlir::Value omp_num_threads = spmd.num_units();
   rewriter.setInsertionPointAfter(spmd);
-  mlir::omp::ParallelOp omp_parallel =
-  rewriter.create<mlir::omp::ParallelOp>(location, nullptr, omp_num_threads,
-  nullptr, mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(),
-  mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(), nullptr);
+  mlir::omp::ParallelOp omp_parallel = rewriter.create<mlir::omp::ParallelOp>(
+      location, nullptr, omp_num_threads, nullptr, mlir::ValueRange(),
+      mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(),
+      mlir::ValueRange(), mlir::ValueRange(), nullptr);
   rewriter.inlineRegionBefore(spmd.region(), omp_parallel.region(),
-  omp_parallel.region().begin()); rewriter.eraseOp(spmd);
-  */
+                              omp_parallel.region().begin());
+  rewriter.eraseOp(spmd);
 
+  assert(llvm::hasSingleElement(loop.getRegion()) &&
+         "expected scf.for to have one block");
+  rewriter.setInsertionPointToEnd(loop.getBody());
+  rewriter.replaceOpWithNewOp<mlir::omp::YieldOp>(
+      loop.getBody()->getTerminator(), mlir::ValueRange());
+  rewriter.setInsertionPointAfter(workshare_target);
+  mlir::omp::WsLoopOp omp_loop = rewriter.create<mlir::omp::WsLoopOp>(
+      location, lower_bound, upper_bound, step);
+  rewriter.inlineRegionBefore(loop.getLoopBody(), omp_loop.region(),
+                              omp_loop.region().begin());
+  rewriter.create<mlir::omp::TerminatorOp>(location);
+  rewriter.eraseOp(workshare_target);
+
+  /*
   std::cout << "\nConvert Upir dialect to OpenACC dialect....\n" << std::endl;
   mlir::IRRewriter rewriter(&context);
 
@@ -216,6 +228,7 @@ void dummy() {
   rewriter.inlineRegionBefore(workshare_target.region(), acc_loop.region(),
                               acc_loop.region().begin());
   rewriter.eraseOp(workshare_target);
+  */
 
   rewriter.eraseOp(parallel_data_value_x.getDefiningOp());
   rewriter.eraseOp(parallel_data_value_y.getDefiningOp());
@@ -256,7 +269,8 @@ int main(int argc, char **argv) {
   SgProject *project = frontend(argc, argv);
   assert(project);
 
-  mlir::OwningOpRef<mlir::ModuleOp> mlir_module = generate_mlir(context, project);
+  mlir::OwningOpRef<mlir::ModuleOp> mlir_module =
+      generate_mlir(context, project);
   mlir_module->dump();
 
   return 0;

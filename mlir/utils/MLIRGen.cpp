@@ -27,8 +27,6 @@
 
 #include "mlir/IR/OwningOpRef.h"
 
-//#include "data_analyzing.h"
-
 using namespace mlir::upir;
 
 using llvm::ArrayRef;
