@@ -25,7 +25,7 @@
 #include "mlir/InitAllDialects.h"
 #include "mlir/InitAllPasses.h"
 
-#include "data_analyzing.h"
+#include "mlir/IR/OwningOpRef.h"
 
 using namespace mlir::upir;
 
@@ -130,8 +130,9 @@ mlir::Value convert_op(mlir::OpBuilder& builder, SgExpression* node) {
 
     mlir::Location location = builder.getUnknownLoc();
     mlir::Value result = nullptr;
-    SgGlobal* global_scope = SageInterface::getGlobalScope(node);
+    //SgGlobal* global_scope = SageInterface::getGlobalScope(node);
     switch (node->variantT()) {
+        /*
         case V_SgCudaKernelCallExp:
             {
                 SgCudaKernelCallExp* cuda_kernel = isSgCudaKernelCallExp(node);
@@ -210,6 +211,7 @@ mlir::Value convert_op(mlir::OpBuilder& builder, SgExpression* node) {
                 builder.setInsertionPointAfter(task_target);
                 break;
             }
+    */
         case V_SgAddOp:
         case V_SgAssignOp:
         case V_SgDivideOp:
@@ -229,7 +231,7 @@ mlir::Value convert_op(mlir::OpBuilder& builder, SgExpression* node) {
             }
         case V_SgIntVal:
             {
-                result = builder.create<mlir::ConstantIntOp>(location, std::stoi(node->unparseToString()), 32);
+                result = builder.create<mlir::arith::ConstantIntOp>(location, std::stoi(node->unparseToString()), 32);
                 break;
             }
         default:
@@ -274,38 +276,45 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 convert_op(builder, target->get_expression());
                 break;
             }
-        case V_SgOmpParallelStatement:
+        case V_SgUpirSpmdStatement:
             {
-                SgOmpParallelStatement* target = isSgOmpParallelStatement(node);
+                SgUpirSpmdStatement* target = isSgUpirSpmdStatement(node);
                 std::cout << "Insert a SPMD region...." << std::endl;
 
-                std::map<SgVariableSymbol *, ParallelData *> parallel_data = analyze_parallel_data(isSgSourceFile(&(upir::g_project->get_file(0))));
-                std::map<SgVariableSymbol *, ParallelData *>::iterator data_iter;
+                //std::map<SgVariableSymbol *, ParallelData *> parallel_data = analyze_parallel_data(isSgSourceFile(&(upir::g_project->get_file(0))));
+                //std::map<SgVariableSymbol *, ParallelData *>::iterator data_iter;
+                Rose_STL_Container<SgOmpClause *> data_fields = OmpSupport::getClause(target, V_SgUpirDataField);
                 std::vector<mlir::Value> value_list;
-                for (data_iter = parallel_data.begin(); data_iter != parallel_data.end(); data_iter++) {
-                  ParallelData * iter = data_iter->second;
-                  std::string symbol = iter->get_symbol()->get_name();
-                  std::string sharing_property = iter->get_sharing_property();
-                  std::string sharing_visibility = iter->get_sharing_visibility();
-                  std::string mapping_property = iter->get_mapping_property();
-                  std::string mapping_visibility = iter->get_mapping_visibility();
-                  std::string data_access = iter->get_data_access();
+                for (size_t i = 0; i < data_fields.size(); i++) {
+                  //ParallelData * iter = data_iter->second;
+                  SgUpirDataField* data_field = (SgUpirDataField*)data_fields[i];
+                  ROSE_ASSERT(data_field);
+                  std::list<SgUpirDataItemField *> data_items = data_field->get_data();
+                  for (std::list<SgUpirDataItemField*>::iterator iter = data_items.begin(); iter != data_items.end(); iter++) {
+                      SgUpirDataItemField* data_item = *iter;
+                      std::string symbol = data_item->get_symbol()->get_name();
+                  std::string sharing_property = "";
+                  std::string sharing_visibility = "";
+                  std::string mapping_property = "";
+                  std::string mapping_visibility = "";
+                  std::string data_access = "";
                   llvm::ArrayRef<llvm::StringRef> parallel_data_string = {symbol, sharing_property, sharing_visibility, mapping_property, mapping_visibility, data_access};
                   mlir::ArrayAttr parallel_data = builder.getStrArrayAttr(parallel_data_string);
                   mlir::Value parallel_data_value = builder.create<mlir::upir::ParallelDataInfoOp>(location, builder.getNoneType(), parallel_data, nullptr);
                   value_list.push_back(parallel_data_value);
+                  }
 
                 }
                 llvm::ArrayRef<mlir::Value> parallel_data_values = llvm::ArrayRef<mlir::Value>(value_list);
                 mlir::ValueRange parallel_data_range = mlir::ValueRange(parallel_data_values);
 
                 mlir::Value num_threads = nullptr;
-                if (OmpSupport::hasClause(target, V_SgOmpNumThreadsClause)) {
-                    Rose_STL_Container<SgOmpClause*> num_threads_clauses = OmpSupport::getClause(target, V_SgOmpNumThreadsClause);
-                    SgOmpNumThreadsClause* num_threads_clause = isSgOmpNumThreadsClause(num_threads_clauses[0]);
+                if (OmpSupport::hasClause(target, V_SgUpirNumUnitsField)) {
+                    Rose_STL_Container<SgOmpClause*> num_threads_clauses = OmpSupport::getClause(target, V_SgUpirNumUnitsField);
+                    SgUpirNumUnitsField* num_threads_clause = isSgUpirNumUnitsField(num_threads_clauses[0]);
                     std::string num_threads_string = num_threads_clause->get_expression()->unparseToString();
                     int32_t num_thread_value = std::stoi(num_threads_string);
-                    num_threads = builder.create<mlir::ConstantIntOp>(location, num_thread_value, 32);
+                    num_threads = builder.create<mlir::arith::ConstantIntOp>(location, num_thread_value, 32);
                 }
                 mlir::upir::SpmdOp spmd = builder.create<mlir::upir::SpmdOp>(location, num_threads, nullptr, mlir::ValueRange(), parallel_data_range, nullptr);
                 mlir::Region &spmd_body = spmd.getRegion();
@@ -320,14 +329,14 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 builder.setInsertionPointAfter(spmd);
                 break;
             }
-        case V_SgOmpForStatement:
+        case V_SgUpirLoopParallelStatement:
         case V_SgOmpDoStatement:
             {
-                SgOmpForStatement* omp_for = isSgOmpForStatement(node);
+                SgUpirLoopParallelStatement* omp_for = isSgUpirLoopParallelStatement(node);
                 SgOmpDoStatement* omp_do = isSgOmpDoStatement(node);
-                SgOmpClauseBodyStatement* omp_target = NULL;
+                SgUpirFieldBodyStatement* omp_target = NULL;
                 if (omp_for != NULL) {
-                    omp_target = omp_for;
+                    omp_target = isSgUpirLoopStatement(omp_for->get_loop());
                 } else {
                     omp_target = omp_do;
                 }
@@ -342,7 +351,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                     SgOmpCollapseClause* collapse_clause = isSgOmpCollapseClause(collapse_clauses[0]);
                     std::string collapse_string = collapse_clause->get_expression()->unparseToString();
                     int32_t collapse_value = std::stoi(collapse_string);
-                    collapse = builder.create<mlir::ConstantIntOp>(location, collapse_value, 32);
+                    collapse = builder.create<mlir::arith::ConstantIntOp>(location, collapse_value, 32);
                 }
                 SgInitializedName* for_index = NULL;
                 SgExpression* for_lower = NULL;
@@ -367,7 +376,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                     if (upir::symbol_table.count(for_lower) != 0) {
                         lower_bound = upir::symbol_table[for_lower].first;
                     } else {
-                        lower_bound = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_lower->unparseToString()));
+                        lower_bound = builder.create<mlir::arith::ConstantIndexOp>(location, std::stoi(for_lower->unparseToString()));
                         upir::symbol_table[for_lower] = std::make_pair(lower_bound, for_lower_symbol);
                     }
                 }
@@ -377,7 +386,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                     upper_bound = upir::symbol_table.at(for_upper_symbol).first;
                     assert(upper_bound != nullptr);
                 } else {
-                    upper_bound = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_upper->unparseToString()));
+                    upper_bound = builder.create<mlir::arith::ConstantIndexOp>(location, std::stoi(for_upper->unparseToString()));
                 }
 
                 mlir::Value stride = nullptr;
@@ -388,7 +397,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                     if (upir::symbol_table.count(for_stride_symbol) != 0) {
                         stride = upir::symbol_table.at(for_stride).first;
                     } else {
-                        stride = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_stride->unparseToString()));
+                        stride = builder.create<mlir::arith::ConstantIndexOp>(location, std::stoi(for_stride->unparseToString()));
                         upir::symbol_table[for_stride] = std::make_pair(stride, for_stride_symbol);
                     }
                 }
@@ -407,9 +416,9 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 builder.setInsertionPointAfter(workshare_target);
                 break;
             }
-        case V_SgOmpTargetStatement:
+        case V_SgUpirTaskStatement:
             {
-                SgOmpTargetStatement* target = isSgOmpTargetStatement(node);
+                SgUpirTaskStatement* target = isSgUpirTaskStatement(node);
                 std::cout << "Insert a target region...." << std::endl;
                 mlir::StringAttr device = builder.getStringAttr(llvm::StringRef("nvptx"));
                 mlir::upir::TaskOp task_target = builder.create<mlir::upir::TaskOp>(location, nullptr, device, nullptr, mlir::ValueRange(), mlir::ValueRange(), nullptr);
@@ -477,7 +486,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                     if (upir::symbol_table.count(for_lower) != 0) {
                         lower_bound = upir::symbol_table.at(for_lower).first;
                     } else {
-                        lower_bound = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_lower->unparseToString()));
+                        lower_bound = builder.create<mlir::arith::ConstantIndexOp>(location, std::stoi(for_lower->unparseToString()));
                         upir::symbol_table[for_lower] = std::make_pair(lower_bound, for_lower_symbol);
                     }
                 }
@@ -487,7 +496,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                 if (for_upper_symbol != NULL) {
                     upper_bound = upir::symbol_table.at(for_upper_symbol).first;
                 } else {
-                    upper_bound = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_upper->unparseToString()));
+                    upper_bound = builder.create<mlir::arith::ConstantIndexOp>(location, std::stoi(for_upper->unparseToString()));
                 }
 
                 mlir::Value stride = nullptr;
@@ -498,7 +507,7 @@ void convert_statement(mlir::OpBuilder& builder, SgStatement* node) {
                     if (upir::symbol_table.count(for_stride_symbol) != 0) {
                         stride = upir::symbol_table.at(for_stride).first;
                     } else {
-                        stride = builder.create<mlir::ConstantIndexOp>(location, std::stoi(for_stride->unparseToString()));
+                        stride = builder.create<mlir::arith::ConstantIndexOp>(location, std::stoi(for_stride->unparseToString()));
                         upir::symbol_table[for_stride] = std::make_pair(stride, for_stride_symbol);
                     }
                 }

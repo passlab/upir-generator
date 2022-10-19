@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13.4)
-project(standalone-dialect LANGUAGES CXX C)
+project(upir-dialect LANGUAGES CXX C)
 
 if(POLICY CMP0116)
   cmake_policy(SET CMP0116 NEW)
@@ -34,12 +34,10 @@ include_directories(${PROJECT_BINARY_DIR}/include)
 link_directories(${REX_INSTALL}/lib)
 link_directories(${LLVM_BUILD_LIBRARY_DIR})
 add_definitions(${LLVM_DEFINITIONS})
+add_definitions(${LLVM_TARGET_DEFINITIONS})
 
 add_subdirectory(include)
 add_subdirectory(lib)
-add_subdirectory(test)
-add_subdirectory(standalone-opt)
-add_subdirectory(standalone-translate)
 
 set(LLVM_LINK_COMPONENTS
   Support
@@ -48,9 +46,7 @@ set(LLVM_LINK_COMPONENTS
 # rex2mlir source files
 set(REX2MLIR_SOURCE_FILES
     rex2mlir.cpp
-    mlir/MLIRGen.cpp
-    mlir/Dialect.cpp
-    analysis/data_analyzing.cpp
+    utils/MLIRGen.cpp
 )
 
 add_executable(rex2mlir ${REX2MLIR_SOURCE_FILES})
@@ -60,11 +56,15 @@ target_link_libraries(rex2mlir
   PRIVATE
     rose
     boost_system
+    MLIRUpir
     MLIRAnalysis
+    MLIRArithmetic
     MLIRIR
     MLIROpenMP
     MLIROpenACC
     MLIRLLVMIR
+    MLIRMemRef
     MLIRParser
+    MLIRSCF
     MLIRSideEffectInterfaces
     MLIRTransforms)
