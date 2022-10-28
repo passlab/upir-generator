@@ -1,4 +1,4 @@
-add_mlir_dialect_library(MLIRUpir
+add_mlir_dialect_library(MLIRUpirDialect
         Dialect.cpp
 
         ADDITIONAL_HEADER_DIRS

@@ -56,15 +56,16 @@ target_link_libraries(rex2mlir
   PRIVATE
     rose
     boost_system
-    MLIRUpir
+    MLIRUpirDialect
     MLIRAnalysis
-    MLIRArithmetic
+    MLIRArithmeticDialect
+    MLIRFuncDialect
     MLIRIR
-    MLIROpenMP
-    MLIROpenACC
-    MLIRLLVMIR
-    MLIRMemRef
+    MLIROpenMPDialect
+    MLIROpenACCDialect
+    MLIRLLVMDialect
+    MLIRMemRefDialect
     MLIRParser
-    MLIRSCF
+    MLIRSCFDialect
     MLIRSideEffectInterfaces
     MLIRTransforms)

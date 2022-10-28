@@ -20,11 +20,11 @@ using namespace mlir::upir;
 // Upir Operations
 //===----------------------------------------------------------------------===//
 
-static void printSpmdOp(mlir::OpAsmPrinter &printer, mlir::upir::SpmdOp op) {
-  if (auto threads = op.num_units())
+void SpmdOp::print(mlir::OpAsmPrinter &printer) {
+  if (auto threads = this->num_units())
     printer << " num_units(" << threads << " : " << threads.getType() << ")";
 
-  mlir::OperandRange data = op.data();
+  mlir::OperandRange data = this->data();
   if (data.size()) {
     printer << " data(";
     unsigned int i;
@@ -38,28 +38,37 @@ static void printSpmdOp(mlir::OpAsmPrinter &printer, mlir::upir::SpmdOp op) {
   }
   printer << " ";
 
-  printer.printRegion(op.getRegion());
+  printer.printRegion(this->getRegion());
 }
 
-static void printWorkshareOp(mlir::OpAsmPrinter &printer,
-                             mlir::upir::WorkshareOp op) {
-  if (auto collapse = op.collapse())
+mlir::ParseResult SpmdOp::parse(mlir::OpAsmParser &parser,
+                                mlir::OperationState &result) {
+  return mlir::success();
+}
+
+void WorkshareOp::print(mlir::OpAsmPrinter &printer) {
+  if (auto collapse = this->collapse())
     printer << " collapse(" << collapse << " : " << collapse.getType() << ")";
 
   printer << " ";
-  printer.printRegion(op.getRegion());
+  printer.printRegion(this->getRegion());
 }
 
-static void printTaskOp(mlir::OpAsmPrinter &printer, mlir::upir::TaskOp op) {
-  if (auto device = op.device()) {
+mlir::ParseResult WorkshareOp::parse(mlir::OpAsmParser &parser,
+                                     mlir::OperationState &result) {
+  return mlir::success();
+}
+
+void TaskOp::print(mlir::OpAsmPrinter &printer) {
+  if (auto device = this->device()) {
     printer << " target(" << device;
-    if (auto device_id = op.device_id()) {
+    if (auto device_id = this->device_id()) {
       printer << " : " << device_id;
     }
     printer << ")";
   }
 
-  mlir::OperandRange data = op.data();
+  mlir::OperandRange data = this->data();
   if (data.size()) {
     printer << " data(";
     unsigned int i;
@@ -72,36 +81,49 @@ static void printTaskOp(mlir::OpAsmPrinter &printer, mlir::upir::TaskOp op) {
     printer << ")";
   }
   printer << " ";
-  printer.printRegion(op.getRegion());
+  printer.printRegion(this->getRegion());
 }
 
-static void printDataOp(mlir::OpAsmPrinter &printer, mlir::upir::DataOp op) {
-  if (auto device = op.device()) {
+mlir::ParseResult TaskOp::parse(mlir::OpAsmParser &parser,
+                                mlir::OperationState &result) {
+  return mlir::success();
+}
+
+void DataOp::print(mlir::OpAsmPrinter &printer) {
+  if (auto device = this->device()) {
     printer << " target(" << device;
-    if (auto device_id = op.device_id()) {
+    if (auto device_id = this->device_id()) {
       printer << " : " << device_id;
     }
     printer << ")";
   }
   printer << " ";
-  printer.printRegion(op.getRegion());
+  printer.printRegion(this->getRegion());
 }
 
-static void printBarrierOp(mlir::OpAsmPrinter &printer,
-                           mlir::upir::BarrierOp op) {
-  if (auto task = op.task_id()) {
+mlir::ParseResult DataOp::parse(mlir::OpAsmParser &parser,
+                                mlir::OperationState &result) {
+  return mlir::success();
+}
+
+void BarrierOp::print(mlir::OpAsmPrinter &printer) {
+  if (auto task = this->task_id()) {
     printer << " task(" << task << ")";
   }
-  if (auto implicit = op.implicit()) {
+  if (auto implicit = this->implicit()) {
     printer << " implicit";
   }
   printer << " ";
 }
 
-static void printParallelDataInfoOp(mlir::OpAsmPrinter &printer,
-                                    mlir::upir::ParallelDataInfoOp op) {
+mlir::ParseResult BarrierOp::parse(mlir::OpAsmParser &parser,
+                                   mlir::OperationState &result) {
+  return mlir::success();
+}
+
+void ParallelDataInfoOp::print(mlir::OpAsmPrinter &printer) {
   printer << " (";
-  mlir::ArrayAttr array_attr = op.data();
+  mlir::ArrayAttr array_attr = this->data();
   llvm::ArrayRef<mlir::Attribute> string_attr_list = array_attr.getValue();
   llvm::ArrayRef<mlir::Attribute>::iterator iter;
   for (iter = string_attr_list.begin(); iter != string_attr_list.end();
@@ -117,12 +139,17 @@ static void printParallelDataInfoOp(mlir::OpAsmPrinter &printer,
     }
     printer << s;
   }
-  if (auto ssa_id = op.value()) {
+  if (auto ssa_id = this->value()) {
     printer << " : " << ssa_id;
   }
 
   printer << ")";
   printer << " ";
+}
+
+mlir::ParseResult ParallelDataInfoOp::parse(mlir::OpAsmParser &parser,
+                                            mlir::OperationState &result) {
+  return mlir::success();
 }
 
 //===----------------------------------------------------------------------===//

@@ -15,6 +15,8 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 def Upir_Dialect : Dialect {
   let name = "upir";
   let cppNamespace = "::mlir::upir";
+
+  let useDefaultTypePrinterParser = 1;
 }
 
 // Base class for upir dialect operations. This operation inherits from the base
@@ -59,8 +61,7 @@ def SpmdOp : Upir_Op<"spmd", [AttrSizedOperandSegments]> {
     OpBuilder<(ins CArg<"ArrayRef<NamedAttribute>", "{}">:$attributes)>
   ];
 
-  let printer = [{ return ::printSpmdOp(p, *this); }];
-
+  let hasCustomAssemblyFormat = 1;
 }
 
 def WorkshareOp : Upir_Op<"workshare", [AttrSizedOperandSegments, AllTypesMatch<["lower_bound", "upper_bound", "step"]>]> {
@@ -87,8 +88,7 @@ def WorkshareOp : Upir_Op<"workshare", [AttrSizedOperandSegments, AllTypesMatch<
     OpBuilder<(ins CArg<"ArrayRef<NamedAttribute>", "{}">:$attributes)>
   ];
 
-  let printer = [{ return ::printWorkshareOp(p, *this); }];
-
+  let hasCustomAssemblyFormat = 1;
 }
 
 def TaskOp : Upir_Op<"task", [AttrSizedOperandSegments]> {
@@ -110,8 +110,7 @@ def TaskOp : Upir_Op<"task", [AttrSizedOperandSegments]> {
     OpBuilder<(ins CArg<"ArrayRef<NamedAttribute>", "{}">:$attributes)>
   ];
 
-  let printer = [{ return ::printTaskOp(p, *this); }];
-
+  let hasCustomAssemblyFormat = 1;
 }
 
 def DataOp : Upir_Op<"data", [AttrSizedOperandSegments]> {
@@ -133,8 +132,7 @@ def DataOp : Upir_Op<"data", [AttrSizedOperandSegments]> {
     OpBuilder<(ins CArg<"ArrayRef<NamedAttribute>", "{}">:$attributes)>
   ];
 
-  let printer = [{ return ::printDataOp(p, *this); }];
-
+  let hasCustomAssemblyFormat = 1;
 }
 
 def BarrierOp : Upir_Op<"barrier", [AttrSizedOperandSegments]> {
@@ -151,8 +149,7 @@ def BarrierOp : Upir_Op<"barrier", [AttrSizedOperandSegments]> {
     OpBuilder<(ins CArg<"ArrayRef<NamedAttribute>", "{}">:$attributes)>
   ];
 
-  let printer = [{ return ::printBarrierOp(p, *this); }];
-
+  let hasCustomAssemblyFormat = 1;
 }
 
 def ParallelDataInfoOp : Upir_Op<"parallel_data_info", [NoSideEffect]> {
@@ -165,7 +162,6 @@ def ParallelDataInfoOp : Upir_Op<"parallel_data_info", [NoSideEffect]> {
              Optional<AnyType>:$value);
   let results = (outs AnyType);
 
-  let printer = [{ return ::printParallelDataInfoOp(p, *this); }];
-
+  let hasCustomAssemblyFormat = 1;
 }
 

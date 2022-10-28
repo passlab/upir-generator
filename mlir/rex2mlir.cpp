@@ -21,15 +21,15 @@
 #include "llvm/ADT/ScopedHashTable.h"
 #include <iostream>
 
-//#include "rose.h"
-//#include "data_analyzing.h"
+// #include "rose.h"
+// #include "data_analyzing.h"
 
 void dummy() {
 
   std::cout << "Set up MLIR environment...." << std::endl;
   mlir::MLIRContext context;
   context.getOrLoadDialect<mlir::upir::UpirDialect>();
-  context.getOrLoadDialect<mlir::StandardOpsDialect>();
+  context.getOrLoadDialect<mlir::func::FuncDialect>();
   context.getOrLoadDialect<mlir::scf::SCFDialect>();
   context.getOrLoadDialect<mlir::omp::OpenMPDialect>();
   context.getOrLoadDialect<mlir::acc::OpenACCDialect>();
@@ -59,8 +59,8 @@ void dummy() {
   llvm::StringRef func_name = std::string("axpy");
 
   std::cout << "Create a base function...." << std::endl;
-  mlir::FuncOp func =
-      builder.create<mlir::FuncOp>(location, func_name, func_type);
+  mlir::func::FuncOp func =
+      builder.create<mlir::func::FuncOp>(location, func_name, func_type);
 
   std::cout << "Create the body of base function...." << std::endl;
   mlir::Block &entryBlock = *func.addEntryBlock();
@@ -182,9 +182,8 @@ void dummy() {
   mlir::Value omp_num_threads = spmd.num_units();
   rewriter.setInsertionPointAfter(spmd);
   mlir::omp::ParallelOp omp_parallel = rewriter.create<mlir::omp::ParallelOp>(
-      location, nullptr, omp_num_threads, nullptr, mlir::ValueRange(),
-      mlir::ValueRange(), mlir::ValueRange(), mlir::ValueRange(),
-      mlir::ValueRange(), mlir::ValueRange(), nullptr);
+      location, nullptr, omp_num_threads, mlir::ValueRange(),
+      mlir::ValueRange(), mlir::ValueRange(), nullptr, nullptr);
   rewriter.inlineRegionBefore(spmd.region(), omp_parallel.region(),
                               omp_parallel.region().begin());
   rewriter.eraseOp(spmd);
@@ -244,7 +243,7 @@ int main(int argc, char **argv) {
   // Register required dialects
   mlir::DialectRegistry registry;
   registry.insert<mlir::upir::UpirDialect>();
-  registry.insert<mlir::StandardOpsDialect>();
+  registry.insert<mlir::func::FuncDialect>();
   registry.insert<mlir::scf::SCFDialect>();
   registry.insert<mlir::omp::OpenMPDialect>();
   registry.insert<mlir::acc::OpenACCDialect>();
@@ -259,7 +258,7 @@ int main(int argc, char **argv) {
 
   mlir::MLIRContext context;
   context.getOrLoadDialect<mlir::upir::UpirDialect>();
-  context.getOrLoadDialect<mlir::StandardOpsDialect>();
+  context.getOrLoadDialect<mlir::func::FuncDialect>();
   context.getOrLoadDialect<mlir::scf::SCFDialect>();
   context.getOrLoadDialect<mlir::omp::OpenMPDialect>();
   context.getOrLoadDialect<mlir::LLVM::LLVMDialect>();
